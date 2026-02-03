@@ -1,5 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
+import { createVeriffFrame } from '@veriff/incontext-sdk';
 
 interface KycData {
     email: string;
@@ -91,29 +92,54 @@ export default function KycPage() {
         setIsSubmitting(true);
         setKycStatus('verifying');
 
-        // Demo mode: Always pass verification
-        const demoMode = true;
-
         try {
-            const response = await fetch('/api/kyc', {
+            // Step 1: Create Veriff session
+            const response = await fetch('/api/kyc-test', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(formData),
             });
 
-            if (response.ok || demoMode) {
-                setKycStatus('passed');
+            const result = await response.json();
+
+            if (result.success && result.sessionToken) {
+                // Store data for later
+                sessionStorage.setItem('kycEmail', formData.email);
                 sessionStorage.setItem('kycData', JSON.stringify(formData));
-                setTimeout(() => navigate('/billing'), 1000);
+
+                console.log('Opening Veriff modal with session:', result.sessionToken);
+
+                // Step 2: Open Veriff SDK modal
+                createVeriffFrame({
+                    url: `https://stationapi.veriff.com/v1/sessions/${result.sessionToken}`,
+                    onEvent: (msg: string) => {
+                        console.log('Veriff event:', msg);
+
+                        if (msg === 'FINISHED') {
+                            // User completed verification successfully
+                            console.log('✅ Verification completed!');
+                            setKycStatus('passed');
+
+                            // Proceed to billing after 2 seconds
+                            setTimeout(() => {
+                                navigate('/billing');
+                            }, 2000);
+                        } else if (msg === 'CANCELED') {
+                            // User canceled verification
+                            console.log('❌ Verification canceled');
+                            setKycStatus('failed');
+                            setIsSubmitting(false);
+                        }
+                    }
+                });
             } else {
+                console.error('Failed to create Veriff session:', result.error);
                 setKycStatus('failed');
+                setIsSubmitting(false);
             }
-        } catch {
-            // Demo mode: proceed anyway
-            setKycStatus('passed');
-            sessionStorage.setItem('kycData', JSON.stringify(formData));
-            setTimeout(() => navigate('/billing'), 1000);
-        } finally {
+        } catch (error) {
+            console.error('KYC session creation failed:', error);
+            setKycStatus('failed');
             setIsSubmitting(false);
         }
     };

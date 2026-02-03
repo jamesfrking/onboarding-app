@@ -3,6 +3,13 @@
   isAvailableForNewContent: true
   label: MSP Scrollable Landing Page (Hardcoded)
 -->
+<!--
+  TODO - Persona detail panels:
+   • Distributor (lines ~441-501) — replace placeholder questions, icons, options; wire up JS; enable confirm
+   • System Integrator (lines ~503-563) — replace placeholder questions, icons, options; wire up JS; enable confirm
+   • Technology Advisor (lines ~565-625) — replace placeholder questions, icons, options; wire up JS; enable confirm
+  MSP persona (lines ~357-439) is fully implemented.
+-->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -11,6 +18,9 @@
   <title>{{ content.html_title }}</title>
   {{ standard_header_includes }}
   
+  {{ require_css(get_asset_url('hubspot-templates-v2/css/msp-scrollable.css')) }}
+  <link rel="stylesheet" href="{{ get_asset_url('hubspot-templates-v2/css/msp-scrollable.css') }}" data-static-fallback="./css/msp-scrollable.css">
+
   <!-- HubSpot Tracking Code (Backup if standard_header_includes doesn't work) -->
   <script type="text/javascript" id="hs-script-loader" async defer src="//js-na2.hs-scripts.com/46424092.js"></script>
   
@@ -20,21 +30,19 @@
   <!-- Lucide Icons CDN -->
   <script src="https://cdn.jsdelivr.net/npm/lucide@latest/dist/umd/lucide.min.js"></script>
   
-  <!-- ============================================
-       STYLES (Visual Design)
-       ============================================
-       This section controls colors, fonts, animations, and layout.
-       Most content changes won't require editing this section.
-       ============================================ -->
-    <link rel="stylesheet" href="{{ get_asset_url('hubspot-templates-v2/css/msp-scrollable.css') }}">
-
+  <!-- Minimal inline styles to prevent flash -->
+  <style>
+    section[data-stage][data-revealed="false"] { display: none !important; }
+  </style>
+  <!-- Full visual design styles now live in css/msp-scrollable.css -->
+  
 </head>
 <body class="bg-black text-white overflow-x-hidden">
   {{ standard_body_prefix }}
 
   <!--
   ╔════════════════════════════════════════════════════════════════════════════╗
-  ║                   CONTENT EDITING GUIDE FOR NON-TECHNICAL USERS            ║
+  ║                           CONTENT EDITING GUIDE                            ║
   ╚════════════════════════════════════════════════════════════════════════════╝
   
   This file contains all the content for the interactive partner journey landing page.
@@ -51,12 +59,12 @@
   - Search for "EDIT SECTION 1: PERSONA DYNAMIC TEXT" → Edit console messages for each persona
   - Search for "EDIT SECTION 2: TELEMETRY MESSAGES" → Edit the console feed messages
   - Search for "EDIT SECTION 3: GOAL DYNAMIC TEXT" → Edit console messages for each goal
-  - Search for "EDIT SECTION 4: STORY CARDS" → Edit the 3 cards shown for each goal
+  - Search for "EDIT SECTION 4: Readiness" → Edit the 3 cards shown for each goal
   - Search for "EDIT SECTION 5: CTA BUTTONS" → Edit the final call-to-action buttons
   
   TIPS:
   - Look for comments that start with "EDIT:" to find editable text
-  - Don't change anything in <style> tags (that's visual design)
+  - Update the CSS file only if you're adjusting visual styling
   - Don't change data-* attributes or id="" values (those power the functionality)
   - Test your changes on a preview page before publishing
   -->
@@ -64,18 +72,52 @@
   {% raw %}
   <script>
     (function(){
-      try {
-        // Remove HubL include tokens when previewing statically (tolerant match)
-        var walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
-        var rm = [], n;
-        var tokenRe = /\{\{\s*standard_(body_prefix|header_includes|footer_includes)\s*\}\}|\{%\s*raw\s*%\}|\{%\s*endraw\s*%\}/i;
-        while ((n = walker.nextNode())) {
-          var txt = (n.textContent || '').replace(/\u00a0/g, ' ').trim();
-          if (!txt) continue;
-          if (tokenRe.test(txt)) rm.push(n);
-        }
-        rm.forEach(function(t){ if (t.parentNode) t.parentNode.removeChild(t); });
-      } catch(e) {}
+      function applyPreviewFallbacks() {
+        try {
+          // Remove HubL include tokens when previewing statically (tolerant match)
+          var walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+          var rm = [], n;
+          var tokenRe = /\{\{\s*standard_(body_prefix|header_includes|footer_includes)\s*\}\}|\{%\s*raw\s*%\}|\{%\s*endraw\s*%\}/i;
+          while ((n = walker.nextNode())) {
+            var txt = (n.textContent || '').replace(/\u00a0/g, ' ').trim();
+            if (!txt) continue;
+            if (tokenRe.test(txt)) rm.push(n);
+          }
+          rm.forEach(function(t){ if (t.parentNode) t.parentNode.removeChild(t); });
+
+          document.querySelectorAll('[data-static-fallback]').forEach(function(node) {
+            var fallback = node.getAttribute('data-static-fallback');
+            if (!fallback) return;
+            var hrefAttr = node.getAttribute('href');
+            if (hrefAttr && hrefAttr.indexOf('{{') !== -1) {
+              var link = document.createElement('link');
+              link.rel = node.rel || 'stylesheet';
+              link.href = fallback;
+              // copy optional attributes
+              if (node.media) link.media = node.media;
+              if (node.type) link.type = node.type;
+              node.parentNode.insertBefore(link, node.nextSibling);
+              node.parentNode.removeChild(node);
+              }
+            var srcAttr = node.getAttribute('src');
+            if (srcAttr && srcAttr.indexOf('{{') !== -1) {
+              var script = document.createElement('script');
+              if (node.defer) script.defer = true;
+              if (node.async) script.async = true;
+              if (node.type) script.type = node.type;
+              script.src = fallback;
+              node.parentNode.insertBefore(script, node.nextSibling);
+              node.parentNode.removeChild(node);
+            }
+          });
+        } catch(e) {}
+      }
+
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', applyPreviewFallbacks);
+      } else {
+        applyPreviewFallbacks();
+      }
     })();
   </script>
   {% endraw %}
@@ -95,13 +137,6 @@
          ============================================ -->
     <!-- Floating Progress Tracker -->
     <aside class="progress-dock xl:flex fixed top-1/2 left-0 flex-col gap-4 z-40" data-visibility="hidden">
-      <button class="progress-pill" data-stage="mission-hero" data-stage-state="active">
-        <span class="progress-index">0</span>
-        <div>
-          <p class="text-xs uppercase tracking-[0.25em] text-slate-300">Launch</p>
-          <p class="text-sm font-semibold text-white">Mission Brief</p>
-        </div>
-      </button>
       <button class="progress-pill" data-stage="mission-persona" data-stage-state="hidden">
         <span class="progress-index">1</span>
         <div>
@@ -126,10 +161,41 @@
       <button class="progress-pill" data-stage="mission-cta" data-stage-state="hidden">
         <span class="progress-index">4</span>
         <div>
-          <p class="text-xs uppercase tracking-[0.25em] text-slate-300">Ignite</p>
-          <p class="text-sm font-semibold text-white">Launch Action</p>
+          <p class="text-xs uppercase tracking-[0.25em] text-slate-300">Complete</p>
+          <p class="text-sm font-semibold text-white">Mission Success</p>
         </div>
       </button>
+    </aside>
+
+    <!-- Floating Rewards Dock (Right Side) -->
+    <aside class="rewards-dock xl:flex fixed top-1/2 right-0 flex-col gap-4 z-40" data-visibility="hidden">
+      <div class="reward-item" data-stage="mission-persona" data-unlocked="false">
+        <div class="reward-locked">
+          <i data-lucide="help-circle" class="w-6 h-6"></i>
+        </div>
+        <button class="reward-download hidden" data-download="persona-guide">
+          <i data-lucide="download" class="w-5 h-5"></i>
+          <span>Retrieve Intel</span>
+        </button>
+      </div>
+      <div class="reward-item" data-stage="mission-goal" data-unlocked="false">
+        <div class="reward-locked">
+          <i data-lucide="help-circle" class="w-6 h-6"></i>
+        </div>
+        <button class="reward-download hidden" data-download="goal-playbook">
+          <i data-lucide="download" class="w-5 h-5"></i>
+          <span>Retrieve Intel</span>
+        </button>
+      </div>
+      <div class="reward-item" data-stage="mission-readiness" data-unlocked="false">
+        <div class="reward-locked">
+          <i data-lucide="help-circle" class="w-6 h-6"></i>
+        </div>
+        <button class="reward-download hidden" data-download="sales-guide">
+          <i data-lucide="download" class="w-5 h-5"></i>
+          <span>Mission Playbook</span>
+        </button>
+      </div>
     </aside>
 
     <main id="mission-scroll">
@@ -176,11 +242,11 @@
             <!-- EDIT: Call-to-action button text -->
             <div class="flex flex-wrap items-center gap-5">
               <button id="begin-mission" class="min-w-[240px] px-10 md:px-12 py-4 text-lg rounded-full bg-cyan-500 font-semibold text-white shadow-lg shadow-cyan-500/30 hover:bg-cyan-400 transition focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-slate-900 focus:ring-cyan-300 animate-pulse hover:animate-none">
-                Begin Mission
+                Initiate Launch Sequence
               </button>
             </div>
             <!-- EDIT: Instruction text below button -->
-            <div class="text-xs uppercase tracking-[0.3em] text-cyan-200/85">Click Begin Mission to continue</div>
+            <div class="text-xs uppercase tracking-[0.3em] text-cyan-200/85">Engage to commence mission</div>
 
             <!-- EDIT: Summary text (updates dynamically after persona selection) -->
             <div class="text-sm text-slate-300/90 max-w-sm" id="mission-summary">
@@ -221,6 +287,53 @@
       </section>
 
       <!-- ============================================
+           STAGE 0: MISSION BRIEFING (EMBEDDED VIDEO) - HIDDEN FOR NOW
+           ============================================
+           Full-bleed briefing introduces the partner program,
+           WAN Aware, and how partner tiers & expectations work.
+           ============================================ -->
+      <!--
+      <section id="mission-briefing" data-stage="mission-briefing" data-revealed="false" class="relative min-h-screen py-16 px-0">
+        <div class="absolute inset-0 bg-gradient-to-b from-black via-slate-950 to-slate-900"></div>
+        <div class="stage-glow"></div>
+        <div class="relative z-10 w-full">
+          <div class="relative max-w-6xl mx-auto">
+            <div class="absolute -inset-4 rounded-3xl bg-cyan-500/15 blur-2xl"></div>
+            <div class="relative rounded-3xl border border-cyan-400/40 bg-black/80 shadow-2xl overflow-hidden">
+              <div class="aspect-video w-full">
+                <iframe
+                  class="w-full h-full"
+                  src="https://www.youtube.com/embed/JwR6pwxi2Es?rel=0&amp;modestbranding=1"
+                  title="WanAware Partner Mission Briefing"
+                  frameborder="0"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                  allowfullscreen
+                ></iframe>
+              </div>
+            </div>
+          </div>
+
+          <div class="max-w-4xl mx-auto px-6 mt-10 space-y-4 text-left md:text-center">
+            <p class="text-sm uppercase tracking-[0.3em] text-cyan-300/80">Stage 0 · Mission Briefing</p>
+            <h2 class="text-3xl md:text-4xl font-bold">How the WanAware partner journey works.</h2>
+            <p class="text-lg text-slate-300/90">
+              Watch a quick walkthrough of the WanAware partner program, your role, and how each partner type plugs into the tiers and rewards.
+            </p>
+            <p class="text-sm text-slate-400">
+              This briefing covers who WanAware is for, what observability means, and what to expect from each partner tier before you choose your persona.
+            </p>
+            <div class="pt-6">
+              <button id="briefing-advance" class="px-8 py-3 rounded-full bg-cyan-500/10 border border-cyan-400/40 text-cyan-100 font-semibold hover:bg-cyan-400/20 transition flex items-center gap-2 mx-auto">
+                <span>Briefing complete · Select persona</span>
+                <i data-lucide="arrow-down" class="w-4 h-4"></i>
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+      -->
+
+      <!-- ============================================
            STAGE 1: PERSONA SELECTION
            ============================================
            Visitors choose their partner type here.
@@ -238,10 +351,14 @@
             <p class="mt-4 text-lg text-slate-300/90 max-w-3xl mx-auto">
               Select the mission badge that best represents you.
             </p>
+            <div id="persona-insight" class="mt-6 mx-auto max-w-2xl px-4 py-3 rounded-lg bg-purple-500/10 border border-purple-400/30 text-sm text-purple-200 hidden">
+              <i data-lucide="users" class="w-4 h-4 inline mr-2"></i>
+              <span id="persona-insight-text"></span>
+            </div>
           </div>
 
-          <div id="persona-layout" class="grid gap-8 lg:grid-cols-[1.1fr_0.9fr] items-start">
-            <div id="persona-grid" class="grid gap-5 md:grid-cols-2">
+          <div id="persona-layout" class="w-full">
+            <div id="persona-grid" class="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
               <!-- EDIT: Persona Card 1 - MSP -->
               <button class="persona-badge" data-persona="msp">
                 <span class="persona-halo"></span>
@@ -329,8 +446,7 @@
                 <button id="change-persona-btn" class="btn-ghost text-sm">Change badge</button>
               </div>
 
-              <div class="flex gap-8 items-start">
-                <div class="flex-1 space-y-6 msp-controls">
+              <div class="space-y-6 msp-controls">
                 <div class="ready-system-row" data-system="msp-offers" data-complete="false">
                   <div class="ready-row-header">
                     <div class="ready-status-ring">
@@ -339,13 +455,14 @@
                     <p class="ready-row-title">What will you deliver today?</p>
                   </div>
                   <div class="flex flex-wrap gap-2">
-                    <button type="button" class="ready-chip msp-offer-chip" data-offer="NOC">NOC</button>
-                    <button type="button" class="ready-chip msp-offer-chip" data-offer="SD-WAN">SD-WAN</button>
-                    <button type="button" class="ready-chip msp-offer-chip" data-offer="SASE/SSE">SASE/SSE</button>
-                    <button type="button" class="ready-chip msp-offer-chip" data-offer="End-User IT">End-User IT</button>
-                    <button type="button" class="ready-chip msp-offer-chip" data-offer="App Performance">App Performance</button>
-                    <button type="button" class="ready-chip msp-offer-chip" data-offer="Cloud Networking">Cloud Networking</button>
+                    <button type="button" class="ready-chip msp-offer-chip" data-offer="NOC">NOC b7 Network Operations Center</button>
+                    <button type="button" class="ready-chip msp-offer-chip" data-offer="SD-WAN">SD-WAN b7 Software-defined WAN</button>
+                    <button type="button" class="ready-chip msp-offer-chip" data-offer="SASE/SSE">SASE/SSE b7 Secure Access Service Edge</button>
+                    <button type="button" class="ready-chip msp-offer-chip" data-offer="End-User IT">End-user IT services</button>
+                    <button type="button" class="ready-chip msp-offer-chip" data-offer="App Performance">Application performance</button>
+                    <button type="button" class="ready-chip msp-offer-chip" data-offer="Cloud Networking">Cloud networking (sites, branches, cloud)</button>
                   </div>
+                  <div class="ready-help">Pick the services you actually deliver today. We use this to tune examples, pricing, and use cases around your core offers.</div>
                 </div>
 
                 <div class="readiness-divider"></div>
@@ -363,6 +480,7 @@
                     <button type="button" class="ready-chip msp-size-btn" data-size="Enterprise">Enterprise</button>
                     <button type="button" class="ready-chip msp-size-btn" data-size="Mixed">Mixed</button>
                   </div>
+                  <div class="ready-help">Choose the band that best matches most of your customers. This changes deal size examples and how we frame value.</div>
                 </div>
 
                 <div class="readiness-divider"></div>
@@ -381,6 +499,7 @@
                     <button type="button" class="ready-chip msp-region-chip" data-region="APAC">APAC</button>
                     <button type="button" class="ready-chip msp-region-chip" data-region="LATAM">LATAM</button>
                   </div>
+                  <div class="ready-help">Tell us where you serve customers. We use this for AE routing, language, and data-residency expectations.</div>
                 </div>
 
                 <div class="readiness-divider"></div>
@@ -396,36 +515,314 @@
                     <button type="button" class="ready-bool-btn msp-whitelabel-btn" data-val="Yes">Yes</button>
                     <button type="button" class="ready-bool-btn msp-whitelabel-btn" data-val="No">No</button>
                   </div>
+                  <div class="ready-help">Let us know if everything needs to carry only your brand, or if co-branded assets are acceptable.</div>
                 </div>
 
                 <div class="pt-4 text-center col-span-full">
-                  <button id="msp-confirm" class="btn-primary" disabled>Confirm & Continue</button>
+                  <button id="msp-confirm" class="btn-primary" disabled>Engage & Proceed</button>
                 </div>
               </div>
             </div>
 
-            <div class="console-panel space-y-8" id="persona-console">
-              <div>
-                <p class="text-xs uppercase tracking-[0.35em] text-cyan-300/70">Signal Console</p>
-                <h3 class="text-3xl font-semibold mt-4" id="persona-readout">Awaiting partner badge…</h3>
-                <p class="mt-3 text-slate-300/80" id="persona-subtext">Choose the identity that matches your motion to unlock curated guidance, proof points, and actions.</p>
-              </div>
-              <div class="rounded-2xl border border-cyan-400/30 bg-cyan-400/10 px-5 py-5 text-sm text-cyan-100" id="persona-signal">
-                Calibration pending. Select a badge to light up the console.
-              </div>
-              <div class="space-y-4" id="telemetry-log">
-                <div class="rounded-2xl border border-cyan-400/20 bg-cyan-400/10 text-sm text-cyan-100 telemetry-entry" data-timestamp="SYS INIT">
-                  <span class="telemetry-message">Console standing by for your signal.</span>
+            <!-- Distributor detail panel (revealed when Distributor selected) -->
+            <div id="distributor-detail-panel" class="readiness-panel space-y-6 hidden w-full lg:max-w-none">
+              <div class="flex items-center justify-between mb-4">
+                <div>
+                  <p class="text-xs uppercase tracking-[0.35em] text-blue-300/70">Distributor Setup</p>
+                  <h3 class="text-2xl font-semibold mt-2">Tune this journey for your Distribution Network</h3>
                 </div>
-                <div class="rounded-2xl border border-blue-400/30 text-sm text-slate-200/90 telemetry-entry" data-timestamp="SYS READY">
-                  <span class="telemetry-message">Every choice shapes the narrative, proof, and calls-to-action ahead.</span>
+                <button class="btn-ghost text-sm change-persona-btn">Change badge</button>
+              </div>
+
+              <div class="space-y-6 distributor-controls">
+                <div class="ready-system-row" data-system="dist-focus" data-complete="false">
+                  <div class="ready-row-header">
+                    <div class="ready-status-ring">
+                      <i data-lucide="layers" class="w-4 h-4"></i>
+                    </div>
+                    <p class="ready-row-title">Whats your line-card focus?</p>
+                  </div>
+                  <div class="flex flex-wrap gap-2">
+                    <button type="button" class="ready-chip dist-focus-chip" data-focus="Networking">Networking</button>
+                    <button type="button" class="ready-chip dist-focus-chip" data-focus="Security">Security</button>
+                    <button type="button" class="ready-chip dist-focus-chip" data-focus="SD-WAN">Software-defined wide-area networking</button>
+                    <button type="button" class="ready-chip dist-focus-chip" data-focus="SASE/SSE">Secure access service edge / security service edge</button>
+                    <button type="button" class="ready-chip dist-focus-chip" data-focus="Observability">Observability</button>
+                    <button type="button" class="ready-chip dist-focus-chip" data-focus="Cloud">Cloud</button>
+                    <button type="button" class="ready-chip dist-focus-chip" data-focus="App Performance">App Performance</button>
+                  </div>
+                  <div class="ready-help">Determines which VARs to activate and which starter kits to send.</div>
+                </div>
+
+                <div class="readiness-divider"></div>
+
+                <div class="ready-system-row" data-system="dist-band" data-complete="false">
+                  <div class="ready-row-header">
+                    <div class="ready-status-ring">
+                      <i data-lucide="users" class="w-4 h-4"></i>
+                    </div>
+                    <p class="ready-row-title">Active reseller footprint (core segment)?</p>
+                  </div>
+                  <div class="flex flex-wrap gap-2">
+                    <button type="button" class="ready-chip dist-band-btn" data-band="1_10">1–10</button>
+                    <button type="button" class="ready-chip dist-band-btn" data-band="11_50">11–50</button>
+                    <button type="button" class="ready-chip dist-band-btn" data-band="51_200">51–200</button>
+                    <button type="button" class="ready-chip dist-band-btn" data-band="200_plus">200+</button>
+                  </div>
+                  <div class="ready-help">Reach and expected launch velocity.</div>
+                </div>
+
+                <div class="readiness-divider"></div>
+
+                <div class="ready-system-row" data-system="dist-regions" data-complete="false">
+                  <div class="ready-row-header">
+                    <div class="ready-status-ring">
+                      <i data-lucide="globe" class="w-4 h-4"></i>
+                    </div>
+                    <p class="ready-row-title">Regions covered</p>
+                  </div>
+                  <div class="flex flex-wrap gap-2">
+                    <button type="button" class="ready-chip dist-region-chip" data-region="US">US</button>
+                    <button type="button" class="ready-chip dist-region-chip" data-region="Canada">Canada</button>
+                    <button type="button" class="ready-chip dist-region-chip" data-region="EU/UK">EU/UK</button>
+                    <button type="button" class="ready-chip dist-region-chip" data-region="APAC">APAC</button>
+                    <button type="button" class="ready-chip dist-region-chip" data-region="LATAM">LATAM</button>
+                  </div>
+                  <div class="ready-help">AE routing, data residency, language.</div>
+                </div>
+
+                <div class="readiness-divider"></div>
+
+                <div class="ready-system-row" data-system="dist-dealreg" data-complete="false">
+                  <div class="ready-row-header">
+                    <div class="ready-status-ring">
+                      <i data-lucide="shield-check" class="w-4 h-4"></i>
+                    </div>
+                    <p class="ready-row-title">Do you run deal-reg & price protection?</p>
+                  </div>
+                  <div class="flex gap-2">
+                    <button type="button" class="ready-bool-btn dist-dealreg-btn" data-val="Yes">Yes</button>
+                    <button type="button" class="ready-bool-btn dist-dealreg-btn" data-val="No">No</button>
+                  </div>
+                  <div class="ready-help">Tells us how to structure promos and margin.</div>
+                </div>
+
+                <div class="readiness-divider"></div>
+
+                <div class="ready-system-row" data-system="dist-mdf" data-complete="false">
+                  <div class="ready-row-header">
+                    <div class="ready-status-ring">
+                      <i data-lucide="piggy-bank" class="w-4 h-4"></i>
+                    </div>
+                    <p class="ready-row-title">MDF/co-marketing funds available?</p>
+                  </div>
+                  <div class="flex gap-2">
+                    <button type="button" class="ready-bool-btn dist-mdf-btn" data-val="Yes">Yes</button>
+                    <button type="button" class="ready-bool-btn dist-mdf-btn" data-val="No">No</button>
+                  </div>
+                  <div class="ready-help">Launch lift; changes the first 30-day plan.</div>
+                </div>
+
+                <div class="pt-4 text-center">
+                  <button id="distributor-confirm" class="btn-primary" disabled>Engage & Proceed</button>
                 </div>
               </div>
-              <div class="pt-2 text-center">
-                <div class="text-xs uppercase tracking-[0.35em] text-slate-400">Lock your badge to proceed</div>
-                <button id="persona-confirm" class="mt-4 inline-flex px-6 py-3 rounded-full border border-cyan-400/40 bg-cyan-400/10 text-cyan-100 font-semibold transition disabled:opacity-40 disabled:cursor-not-allowed hover:bg-cyan-400/20" disabled>
-                  Confirm Persona & Continue
-                </button>
+            </div>
+
+            <!-- System Integrator detail panel (revealed when SI selected) -->
+            <div id="si-detail-panel" class="readiness-panel space-y-6 hidden w-full lg:max-w-none">
+              <div class="flex items-center justify-between mb-4">
+                <div>
+                  <p class="text-xs uppercase tracking-[0.35em] text-purple-300/70">SI Setup</p>
+                  <h3 class="text-2xl font-semibold mt-2">Tune this journey for your SI Practice</h3>
+                </div>
+                <button class="btn-ghost text-sm change-persona-btn">Change badge</button>
+              </div>
+
+              <div class="space-y-6 si-controls">
+                <div class="ready-system-row" data-system="si-focus" data-complete="false">
+                  <div class="ready-row-header">
+                    <div class="ready-status-ring">
+                      <i data-lucide="package" class="w-4 h-4"></i>
+                    </div>
+                    <p class="ready-row-title">Whats your practice focus today?</p>
+                  </div>
+                  <div class="flex flex-wrap gap-2">
+                    <button type="button" class="ready-chip si-focus-chip" data-focus="Network Transformation">Network Transformation</button>
+                    <button type="button" class="ready-chip si-focus-chip" data-focus="SD-WAN">SD-WAN b7 Software-defined WAN</button>
+                    <button type="button" class="ready-chip si-focus-chip" data-focus="SASE/SSE">SASE/SSE b7 Secure Access Service Edge</button>
+                    <button type="button" class="ready-chip si-focus-chip" data-focus="Observability">Observability</button>
+                    <button type="button" class="ready-chip si-focus-chip" data-focus="Cloud Networking">Cloud networking (sites, branches, cloud)</button>
+                    <button type="button" class="ready-chip si-focus-chip" data-focus="App Performance">App Performance</button>
+                  </div>
+                  <div class="ready-help">Highlight where your SI practice leads so we can align plays, examples, and outcomes to that focus.</div>
+                </div>
+
+                <div class="readiness-divider"></div>
+
+                <div class="ready-system-row" data-system="si-length" data-complete="false">
+                  <div class="ready-row-header">
+                    <div class="ready-status-ring">
+                      <i data-lucide="timer" class="w-4 h-4"></i>
+                    </div>
+                    <p class="ready-row-title">Typical project length</p>
+                  </div>
+                  <div class="flex flex-wrap gap-2">
+                    <button type="button" class="ready-chip si-length-btn" data-band="lte_4w">≤4 weeks</button>
+                    <button type="button" class="ready-chip si-length-btn" data-band="w5_12">5–12 weeks</button>
+                    <button type="button" class="ready-chip si-length-btn" data-band="w13_26">13–26 weeks</button>
+                    <button type="button" class="ready-chip si-length-btn" data-band="gte_26w">26+ weeks</button>
+                  </div>
+                  <div class="ready-help">Choose the range that feels most typical for your work. This shapes how we talk about timeline, effort, and rollout.</div>
+                </div>
+
+                <div class="readiness-divider"></div>
+
+                <div class="ready-system-row" data-system="si-verticals" data-complete="false">
+                  <div class="ready-row-header">
+                    <div class="ready-status-ring">
+                      <i data-lucide="building-2" class="w-4 h-4"></i>
+                    </div>
+                    <p class="ready-row-title">Verticals you serve (select any)</p>
+                  </div>
+                  <div class="flex flex-wrap gap-2">
+                    <button type="button" class="ready-chip si-vertical-chip" data-vertical="Public Sector">Public Sector</button>
+                    <button type="button" class="ready-chip si-vertical-chip" data-vertical="Healthcare">Healthcare</button>
+                    <button type="button" class="ready-chip si-vertical-chip" data-vertical="Financial Services">Financial Services</button>
+                    <button type="button" class="ready-chip si-vertical-chip" data-vertical="Manufacturing">Manufacturing</button>
+                    <button type="button" class="ready-chip si-vertical-chip" data-vertical="Retail">Retail</button>
+                    <button type="button" class="ready-chip si-vertical-chip" data-vertical="Tech">Tech</button>
+                  </div>
+                  <div class="ready-help">Select the industries where you do most of your work so we can mirror those stories back to you.</div>
+                </div>
+
+                <div class="readiness-divider"></div>
+
+                <div class="ready-system-row" data-system="si-regions" data-complete="false">
+                  <div class="ready-row-header">
+                    <div class="ready-status-ring">
+                      <i data-lucide="globe" class="w-4 h-4"></i>
+                    </div>
+                    <p class="ready-row-title">Regions covered</p>
+                  </div>
+                  <div class="flex flex-wrap gap-2">
+                    <button type="button" class="ready-chip si-region-chip" data-region="US">US</button>
+                    <button type="button" class="ready-chip si-region-chip" data-region="Canada">Canada</button>
+                    <button type="button" class="ready-chip si-region-chip" data-region="EU/UK">EU/UK</button>
+                    <button type="button" class="ready-chip si-region-chip" data-region="APAC">APAC</button>
+                    <button type="button" class="ready-chip si-region-chip" data-region="LATAM">LATAM</button>
+                  </div>
+                  <div class="ready-help">Choose the regions where you deliver projects. This impacts AE routing, language, and regulatory context.</div>
+                </div>
+
+                <div class="readiness-divider"></div>
+
+                <div class="ready-system-row" data-system="si-procure" data-complete="false">
+                  <div class="ready-row-header">
+                    <div class="ready-status-ring">
+                      <i data-lucide="briefcase" class="w-4 h-4"></i>
+                    </div>
+                    <p class="ready-row-title">Prime vs Subcontract (optional)</p>
+                  </div>
+                  <div class="flex flex-wrap gap-2">
+                    <button type="button" class="ready-chip si-procure-btn" data-val="prime">Prime</button>
+                    <button type="button" class="ready-chip si-procure-btn" data-val="sub">Subcontract</button>
+                    <button type="button" class="ready-chip si-procure-btn" data-val="staff_aug">Staff Aug</button>
+                  </div>
+                  <div class="ready-help">Tell us how you typically show up in deals so examples fit whether you lead, support, or staff the work.</div>
+                </div>
+
+                <div class="pt-4 text-center">
+                  <button id="si-confirm" class="btn-primary" disabled>Engage & Proceed</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Technology Advisor detail panel (revealed when Advisor selected) -->
+            <div id="advisor-detail-panel" class="readiness-panel space-y-6 hidden w-full lg:max-w-none">
+              <div class="flex items-center justify-between mb-4">
+                <div>
+                  <p class="text-xs uppercase tracking-[0.35em] text-sky-300/70">Advisor Setup</p>
+                  <h3 class="text-2xl font-semibold mt-2">Tune this journey for your Advisory Practice</h3>
+                </div>
+                <button class="btn-ghost text-sm change-persona-btn">Change badge</button>
+              </div>
+
+              <div class="space-y-6 advisor-controls">
+                <div class="ready-system-row" data-system="advisor-focus" data-complete="false">
+                  <div class="ready-row-header">
+                    <div class="ready-status-ring">
+                      <i data-lucide="sparkles" class="w-4 h-4"></i>
+                    </div>
+                    <p class="ready-row-title">What do you advise on today?</p>
+                  </div>
+                  <div class="flex flex-wrap gap-2">
+                    <button type="button" class="ready-chip advisor-focus-chip" data-focus="Network Strategy">Network Strategy</button>
+                    <button type="button" class="ready-chip advisor-focus-chip" data-focus="SD-WAN Selection">SD-WAN Selection b7 Software-defined WAN</button>
+                    <button type="button" class="ready-chip advisor-focus-chip" data-focus="SASE/SSE Selection">SASE/SSE Selection b7 Secure Access Service Edge</button>
+                    <button type="button" class="ready-chip advisor-focus-chip" data-focus="Cloud Architecture">Cloud Architecture</button>
+                    <button type="button" class="ready-chip advisor-focus-chip" data-focus="App Performance">App Performance</button>
+                    <button type="button" class="ready-chip advisor-focus-chip" data-focus="Cost Optimization">Cost Optimization</button>
+                  </div>
+                  <div class="ready-help">Routes enablement + starter kit; filters mismatches.</div>
+                </div>
+
+                <div class="readiness-divider"></div>
+
+                <div class="ready-system-row" data-system="advisor-size" data-complete="false">
+                  <div class="ready-row-header">
+                    <div class="ready-status-ring">
+                      <i data-lucide="users" class="w-4 h-4"></i>
+                    </div>
+                    <p class="ready-row-title">Target customer size</p>
+                  </div>
+                  <div class="flex flex-wrap gap-2">
+                    <button type="button" class="ready-chip advisor-size-btn" data-size="SMB">SMB</button>
+                    <button type="button" class="ready-chip advisor-size-btn" data-size="Mid-market">Mid-market</button>
+                    <button type="button" class="ready-chip advisor-size-btn" data-size="Enterprise">Enterprise</button>
+                    <button type="button" class="ready-chip advisor-size-btn" data-size="Mixed">Mixed</button>
+                  </div>
+                  <div class="ready-help">Aligns pricing, packaging, and proof points.</div>
+                </div>
+
+                <div class="readiness-divider"></div>
+
+                <div class="ready-system-row" data-system="advisor-regions" data-complete="false">
+                  <div class="ready-row-header">
+                    <div class="ready-status-ring">
+                      <i data-lucide="globe" class="w-4 h-4"></i>
+                    </div>
+                    <p class="ready-row-title">Geography served</p>
+                  </div>
+                  <div class="flex flex-wrap gap-2">
+                    <button type="button" class="ready-chip advisor-region-chip" data-region="US">US</button>
+                    <button type="button" class="ready-chip advisor-region-chip" data-region="Canada">Canada</button>
+                    <button type="button" class="ready-chip advisor-region-chip" data-region="EU/UK">EU/UK</button>
+                    <button type="button" class="ready-chip advisor-region-chip" data-region="APAC">APAC</button>
+                    <button type="button" class="ready-chip advisor-region-chip" data-region="LATAM">LATAM</button>
+                  </div>
+                  <div class="ready-help">Data residency + AE routing.</div>
+                </div>
+
+                <div class="readiness-divider"></div>
+
+                <div class="ready-system-row" data-system="advisor-cobrand" data-complete="false">
+                  <div class="ready-row-header">
+                    <div class="ready-status-ring">
+                      <i data-lucide="badge-check" class="w-4 h-4"></i>
+                    </div>
+                    <p class="ready-row-title">Co-brand reports needed?</p>
+                  </div>
+                  <div class="flex gap-2">
+                    <button type="button" class="ready-bool-btn advisor-cobrand-btn" data-val="Yes">Yes</button>
+                    <button type="button" class="ready-bool-btn advisor-cobrand-btn" data-val="No">No</button>
+                  </div>
+                  <div class="ready-help">Sets expectations on assets; lighter than full white-label.</div>
+                </div>
+
+                <div class="pt-4 text-center">
+                  <button id="advisor-confirm" class="btn-primary" disabled>Engage & Proceed</button>
+                </div>
               </div>
             </div>
           </div>
@@ -451,58 +848,15 @@
             <p class="mt-4 text-lg text-slate-300/90 max-w-3xl mx-auto" id="goal-intro">
               Select the destination you want to reach and the friction you need cleared. We'll tune the playbooks and proof around your choices.
             </p>
+            <div id="goal-insight" class="mt-6 mx-auto max-w-2xl px-4 py-3 rounded-lg bg-purple-500/10 border border-purple-400/30 text-sm text-purple-200 hidden">
+              <i data-lucide="trending-up" class="w-4 h-4 inline mr-2"></i>
+              <span id="goal-insight-text"></span>
+            </div>
           </div>
 
           <div class="space-y-10">
-            <div class="grid gap-5 sm:grid-cols-2 lg:grid-cols-4" id="goal-grid">
-              <!-- EDIT: Goal Option 1 - Recurring Revenue -->
-              <button class="goal-toggle" data-goal="recurring">
-                <div>
-                  <p class="text-xs uppercase tracking-[0.35em] text-cyan-300/80">Objective</p>
-                  <!-- EDIT: Goal 1 title -->
-                  <h3 class="text-xl font-semibold mt-1">Grow recurring revenue</h3>
-                  <!-- EDIT: Goal 1 description -->
-                  <p class="text-sm text-slate-300/80 mt-2">Engineer subscription bundles, automation playbooks, and pricing motions that boost MRR.</p>
-                </div>
-                <i data-lucide="repeat" class="w-9 h-9 text-cyan-300"></i>
-              </button>
-
-              <!-- EDIT: Goal Option 2 - Managed Services -->
-              <button class="goal-toggle" data-goal="services">
-                <div>
-                  <p class="text-xs uppercase tracking-[0.35em] text-sky-300/80">Objective</p>
-                  <!-- EDIT: Goal 2 title -->
-                  <h3 class="text-xl font-semibold mt-1">Launch new managed services</h3>
-                  <!-- EDIT: Goal 2 description -->
-                  <p class="text-sm text-slate-300/80 mt-2">Productize offers faster with deployment blueprints, enablement paths, and co-branded assets.</p>
-                </div>
-                <i data-lucide="rocket" class="w-9 h-9 text-sky-300"></i>
-              </button>
-
-              <!-- EDIT: Goal Option 3 - Client Retention -->
-              <button class="goal-toggle" data-goal="retention">
-                <div>
-                  <p class="text-xs uppercase tracking-[0.35em] text-blue-300/80">Objective</p>
-                  <!-- EDIT: Goal 3 title -->
-                  <h3 class="text-xl font-semibold mt-1">Strengthen client retention</h3>
-                  <!-- EDIT: Goal 3 description -->
-                  <p class="text-sm text-slate-300/80 mt-2">Instrument experience dashboards, QBR automation, and customer marketing cadences.</p>
-                </div>
-                <i data-lucide="shield" class="w-9 h-9 text-blue-300"></i>
-              </button>
-
-              <!-- EDIT: Goal Option 4 - Co-Sell -->
-              <button class="goal-toggle" data-goal="cosell">
-                <div>
-                  <p class="text-xs uppercase tracking-[0.35em] text-purple-300/80">Objective</p>
-                  <!-- EDIT: Goal 4 title -->
-                  <h3 class="text-xl font-semibold mt-1">Accelerate co-sell velocity</h3>
-                  <!-- EDIT: Goal 4 description -->
-                  <p class="text-sm text-slate-300/80 mt-2">Orchestrate marketplace offers, shared pipeline visibility, and field activation campaigns.</p>
-                </div>
-                <i data-lucide="link" class="w-9 h-9 text-purple-300"></i>
-              </button>
-            </div>
+            <!-- Dynamic goals render here based on persona -->
+            <div class="grid gap-5 sm:grid-cols-2 lg:grid-cols-4" id="goal-console"></div>
 
             <div class="console-panel space-y-8" id="goal-console-secondary">
               <div class="flex justify-end -mt-2 -mb-2">
@@ -555,9 +909,26 @@
                     </div>
                     <p class="ready-row-title">Time to start</p>
                   </div>
-                  <div class="traj-slider">
-                    <input id="tts-slider" type="range" min="0" max="3" step="1" value="1" aria-label="Time to start banded slider">
-                    <div class="traj-ticks"><span>Now</span><span>30d</span><span>30–90d</span><span>90d+</span></div>
+                  <div class="timeline-selector">
+                    <div class="timeline-line"></div>
+                    <div class="timeline-points">
+                      <button type="button" class="timeline-point" data-traj="time_to_start" data-value="now">
+                        <span class="timeline-dot"></span>
+                        <span class="timeline-label">Now</span>
+                      </button>
+                      <button type="button" class="timeline-point" data-traj="time_to_start" data-value="30d">
+                        <span class="timeline-dot"></span>
+                        <span class="timeline-label">30d</span>
+                      </button>
+                      <button type="button" class="timeline-point" data-traj="time_to_start" data-value="30_90d">
+                        <span class="timeline-dot"></span>
+                        <span class="timeline-label">30–90d</span>
+                      </button>
+                      <button type="button" class="timeline-point" data-traj="time_to_start" data-value="90d_plus">
+                        <span class="timeline-dot"></span>
+                        <span class="timeline-label">90d+</span>
+                      </button>
+                    </div>
                   </div>
                   <div class="ready-help">We pace enablement to your window.</div>
                 </div>
@@ -587,15 +958,33 @@
                     <div class="ready-status-ring">
                       <i data-lucide="users" class="w-4 h-4"></i>
                     </div>
-                    <p class="ready-row-title">Active customer count (core segment)</p>
+                    <p class="ready-row-title">Active advisory clients in core segment</p>
                   </div>
                   <div class="flex flex-wrap gap-2">
                     <button type="button" class="ready-chip traj-btn" data-traj="customer_band" data-value="0_5">0–5</button>
-                    <button type="button" class="ready-chip traj-btn" data-traj="customer_band" data-value="5_20">5–20</button>
-                    <button type="button" class="ready-chip traj-btn" data-traj="customer_band" data-value="20_50">20–50</button>
+                    <button type="button" class="ready-chip traj-btn" data-traj="customer_band" data-value="6_20">6–20</button>
+                    <button type="button" class="ready-chip traj-btn" data-traj="customer_band" data-value="21_50">21–50</button>
                     <button type="button" class="ready-chip traj-btn" data-traj="customer_band" data-value="50_plus">50+</button>
                   </div>
-                  <div class="ready-help">Right-size your revenue or enablement path.</div>
+                  <div class="ready-help">Book of business informs repeatable revenue and engagement model.</div>
+                </div>
+
+                <div class="readiness-divider"></div>
+
+                <div class="ready-system-row" data-system="traj-intros" data-complete="false">
+                  <div class="ready-row-header">
+                    <div class="ready-status-ring">
+                      <i data-lucide="target" class="w-4 h-4"></i>
+                    </div>
+                    <p class="ready-row-title">Intro-ready accounts in next 30 days?</p>
+                  </div>
+                  <div class="flex flex-wrap gap-2">
+                    <button type="button" class="ready-chip traj-btn" data-traj="intro_accounts_30d" data-value="a0">0</button>
+                    <button type="button" class="ready-chip traj-btn" data-traj="intro_accounts_30d" data-value="a1">1</button>
+                    <button type="button" class="ready-chip traj-btn" data-traj="intro_accounts_30d" data-value="a2_3">2–3</button>
+                    <button type="button" class="ready-chip traj-btn" data-traj="intro_accounts_30d" data-value="a4_plus">4+</button>
+                  </div>
+                  <div class="ready-help">Measures near-term pipeline you can act on immediately.</div>
                 </div>
               </div>
 
@@ -605,7 +994,7 @@
               <div class="pt-2 text-center">
                 <div class="text-xs uppercase tracking-[0.35em] text-slate-400">Lock your objective to proceed</div>
                 <button id="goal-confirm" class="mt-4 inline-flex px-6 py-3 rounded-full border border-cyan-400/40 bg-cyan-400/10 text-cyan-100 font-semibold transition disabled:opacity-40 disabled:cursor-not-allowed hover:bg-cyan-400/20" disabled>
-                  Confirm Objective & Continue
+                  Lock Trajectory & Proceed
                 </button>
               </div>
             </div>
@@ -628,17 +1017,16 @@
         <div class="stage-glow"></div>
 
         <div class="relative z-10 max-w-6xl mx-auto">
-          <div class="flex flex-col md:flex-row md:items-end md:justify-between gap-8 mb-16">
-            <div>
-              <p class="text-sm uppercase tracking-[0.3em] text-cyan-300/80">Stage 3 · Readiness</p>
-              <h2 class="text-4xl md:text-5xl font-bold mt-4">Pre‑flight readiness check</h2>
-              <p class="mt-4 text-lg text-slate-300/90 max-w-2xl" id="readiness-intro">
-                Review your objective and trajectory. We’ll confirm owners and pacing before launching tailored CTAs.
-              </p>
+          <div class="mb-16">
+            <p class="text-sm uppercase tracking-[0.3em] text-cyan-300/80">Stage 3 · Readiness</p>
+            <h2 class="text-4xl md:text-5xl font-bold mt-4">Pre‑flight readiness check</h2>
+            <p class="mt-4 text-lg text-slate-300/90 max-w-2xl" id="readiness-intro">
+              Review your objective and trajectory. We'll confirm owners and pacing before launching tailored CTAs.
+            </p>
+            <div class="mt-4 inline-flex items-center gap-3 px-4 py-2 rounded-full bg-orange-500/10 border border-orange-400/30">
+              <i data-lucide="clock" class="w-4 h-4 text-orange-400"></i>
+              <span class="text-sm font-medium text-orange-200" id="launch-countdown">Launch window closing in 23:45:12</span>
             </div>
-            <button id="readiness-advance" class="self-start md:self-auto px-6 py-3 rounded-full border border-cyan-400/40 bg-cyan-400/10 text-cyan-100 font-semibold hover:bg-cyan-400/20 transition" disabled>
-              Confirm Readiness & Launch CTAs
-            </button>
           </div>
 
           <div id="readiness-checklist" class="readiness-panel space-y-6">
@@ -647,7 +1035,7 @@
                 <div class="ready-status-ring">
                   <i data-lucide="clock" class="w-4 h-4"></i>
                 </div>
-                <p class="ready-row-title">Kickoff window</p>
+                <p class="ready-row-title">Start commitment (Earliest start window)</p>
               </div>
               <div class="flex flex-wrap gap-2">
                 <button type="button" class="ready-chip" data-ready="kickoff" data-value="this_week">Ready this week</button>
@@ -655,7 +1043,7 @@
                 <button type="button" class="ready-chip" data-ready="kickoff" data-value="next_30_days">Ready within 30 days</button>
                 <button type="button" class="ready-chip" data-ready="kickoff" data-value="unscheduled">Not ready to schedule</button>
               </div>
-              <div class="ready-help">We'll propose the lightest-weight first step.</div>
+              <div class="ready-help">Even a rough window helps us queue the right team and materials.</div>
             </div>
 
             <div class="readiness-divider"></div>
@@ -663,15 +1051,15 @@
             <div class="ready-system-row" data-system="exec" data-complete="false">
               <div class="ready-row-header">
                 <div class="ready-status-ring">
-                  <i data-lucide="user-check" class="w-4 h-4"></i>
+                  <i data-lucide="shield-check" class="w-4 h-4"></i>
                 </div>
-                <p class="ready-row-title">Executive Sponsor Named</p>
+                <p class="ready-row-title">Do you have an exec we can loop in later?</p>
               </div>
               <div class="flex gap-2">
-                <button type="button" class="ready-bool-btn" data-ready="exec" data-value="Yes">Yes</button>
-                <button type="button" class="ready-bool-btn" data-ready="exec" data-value="No">No</button>
+                <button type="button" class="ready-bool-btn" data-ready="exec" data-value="true">Yes</button>
+                <button type="button" class="ready-bool-btn" data-ready="exec" data-value="false">Not yet</button>
               </div>
-              <div class="ready-help">An exec backer accelerates approvals.</div>
+              <div class="ready-help">Air cover from an executive prevents drift once we kick off.</div>
             </div>
 
             <div class="readiness-divider"></div>
@@ -679,18 +1067,24 @@
             <div class="ready-system-row" data-system="weekly" data-complete="false">
               <div class="ready-row-header">
                 <div class="ready-status-ring">
-                  <i data-lucide="calendar-clock" class="w-4 h-4"></i>
+                  <i data-lucide="timer" class="w-4 h-4"></i>
                 </div>
-                <p class="ready-row-title">About how much team time each week at first?</p>
+                <p class="ready-row-title">About how much team time can you roughly spare each week at first?</p>
               </div>
               <div class="flex flex-wrap gap-2">
                 <button type="button" class="ready-time-btn" data-ready="weekly" data-value="lt_1h">Quick check-ins (~30–60 min)</button>
                 <button type="button" class="ready-time-btn" data-ready="weekly" data-value="1_2h">A little hands-on (1–2 hrs)</button>
                 <button type="button" class="ready-time-btn" data-ready="weekly" data-value="3_4h">Working session each week (3–4 hrs)</button>
-                <button type="button" class="ready-time-btn" data-ready="weekly" data-value="5h_plus">We'll sprint early (5+ hrs)</button>
+                <button type="button" class="ready-time-btn" data-ready="weekly" data-value="5h_plus">We’ll sprint early (5+ hrs)</button>
               </div>
-              <div class="ready-help">Most partners start light. You can change this anytime.</div>
+              <div class="ready-help">Helps us right-size the pilot and keep it safe for your team.</div>
             </div>
+          </div>
+
+          <div class="mt-12 flex justify-center">
+            <button id="readiness-advance" class="px-6 py-3 rounded-full border border-cyan-400/40 bg-cyan-400/10 text-cyan-100 font-semibold hover:bg-cyan-400/20 transition" disabled>
+              Systems Green • Proceed to Launch
+            </button>
           </div>
         </div>
       </section>
@@ -710,18 +1104,17 @@
         <div class="stage-glow"></div>
 
         <div class="relative z-10 max-w-5xl mx-auto text-center">
-          <p class="text-sm uppercase tracking-[0.3em] text-cyan-300/80">Stage 4 · Ignite</p>
-          <h2 class="text-4xl md:text-5xl font-bold mt-4" id="cta-headline">Tailored CTA ready when you are.</h2>
+          <p class="text-sm uppercase tracking-[0.3em] text-cyan-300/80">Stage 4 · Launch Vectors</p>
+          <h2 class="text-4xl md:text-5xl font-bold mt-4" id="cta-headline">Choose your next mission handoff.</h2>
           <p class="mt-4 text-lg text-slate-300/90 max-w-3xl mx-auto" id="cta-subhead">
-            Once you’ve locked your journey, pick the CTA that fits. We’ll capture it quietly before guiding you onward.
+            Lock in time with our crew, activate the partner lane, or watch the quick briefing before we escort you onward.
           </p>
 
-          <div class="cta-grid grid gap-6 mt-12 md:grid-cols-3" id="cta-grid">
+          <div class="cta-grid mt-12" id="cta-grid">
             <!-- CTA buttons injected dynamically -->
           </div>
 
           <div class="mt-12 text-sm text-slate-400" id="cta-footnote">
-            Changing your persona or objective above will refresh these CTAs in real time.
           </div>
         </div>
       </section>
@@ -732,6 +1125,12 @@
            This modal appears when a visitor clicks a CTA button.
            Edit the headline and description text below.
            ============================================ -->
+      
+      <!-- Warp Speed Transition Overlay -->
+      <div id="warp-overlay" class="warp-overlay" aria-hidden="true">
+        <div class="warp-lines"></div>
+      </div>
+
       <!-- Email capture overlay -->
       <div id="email-overlay" class="email-overlay" aria-hidden="true" role="dialog">
         <div class="email-modal">
@@ -769,6 +1168,25 @@
     </div>
   </div>
 
+  <!-- Reward unlocked overlay -->
+  <div id="reward-overlay" class="reward-overlay" aria-hidden="true" role="dialog">
+    <div class="reward-modal text-right">
+      <button id="reward-dismiss" class="reward-close" type="button" aria-label="Dismiss reward overlay">
+        <i data-lucide="x" class="w-4 h-4"></i>
+      </button>
+      <p class="text-xs uppercase tracking-[0.35em] text-cyan-300/80">Reward unlocked</p>
+      <h3 id="reward-title" class="text-2xl font-semibold mt-2">Your mission intel is ready</h3>
+      <p id="reward-description" class="mt-2 text-slate-300/85">
+        You just completed this stage. Download the unlocked intel before you continue.
+      </p>
+      <div class="mt-6 flex flex-col gap-3 items-end">
+        <button id="reward-primary" class="btn-primary" type="button">
+          <i data-lucide="download" class="w-4 h-4"></i>
+          <span id="reward-primary-label">Download guide</span>
+        </button>
+      </div>
+    </div>
+  </div>
   <!-- Fixed opt-in button (appears after scrolling past hero) -->
   <div id="optin-float" class="optin-float">
     <button id="optin-btn" class="optin-btn" type="button">
@@ -780,26 +1198,50 @@
   <!-- Hidden form for HubSpot capture -->
   <form id="journey-sync-form" class="hidden" data-hubspot-form="msp-journey">
     <!-- Marketing Ops: map each name attribute to a HubSpot contact property -->
+    <!-- Visitor info -->
     <input type="hidden" name="journey_first_name" value="">
     <input type="hidden" name="journey_last_name" value="">
     <input type="hidden" name="journey_email" value="">
     <input type="hidden" name="journey_business_name" value="">
     <input type="hidden" name="journey_business_website" value="">
+
+    <!-- Persona / goal / pain / priority -->
+    <input type="hidden" name="journey_partner_type" value="">
+    <input type="hidden" name="journey_goal" value="">
+    <input type="hidden" name="journey_pain_point" value="">
+    <input type="hidden" name="journey_priority" value="70">
+
+    <!-- MSP specifics -->
     <input type="hidden" name="journey_msp_offers" value="">
     <input type="hidden" name="journey_target_customer_size" value="">
     <input type="hidden" name="journey_regions_served" value="">
     <input type="hidden" name="journey_white_label_required" value="">
-    <input type="hidden" name="journey_partner_type" value="">
-    <input type="hidden" name="journey_goal" value="">
-    <input type="hidden" name="journey_pain_point" value="">
+
+    <!-- Advisor specifics -->
+    <input type="hidden" name="journey_advisor_focus" value="">
+    <input type="hidden" name="journey_cobrand_required" value="">
+
+    <!-- System Integrator specifics -->
+    <input type="hidden" name="journey_si_focus" value="">
+    <input type="hidden" name="journey_project_length_band" value="">
+    <input type="hidden" name="journey_verticals" value="">
+    <input type="hidden" name="journey_si_procurement_model" value="">
+
+    <!-- Trajectory (Stage 2) -->
     <input type="hidden" name="journey_time_to_start" value="">
     <input type="hidden" name="journey_process_owner" value="">
-    <input type="hidden" name="journey_customer_band" value="">
-    <input type="hidden" name="journey_kickoff_window" value="">
+    <input type="hidden" name="journey_active_customer_band" value="">
+    <input type="hidden" name="journey_intro_accounts_30d" value="">
+
+    <!-- Readiness (Stage 3) -->
+    <input type="hidden" name="journey_pilot_kickoff_window" value="">
     <input type="hidden" name="journey_exec_sponsor_named" value="">
     <input type="hidden" name="journey_weekly_time_commitment" value="">
-    <input type="hidden" name="journey_priority" value="70">
+
+    <!-- Progress / tracking -->
     <input type="hidden" name="journey_completion_stage" value="mission-hero">
+
+    <!-- CTA -->
     <input type="hidden" name="journey_cta_selected" value="">
   </form>
 
@@ -810,14 +1252,14 @@
        Non-technical users: Scroll down to find clearly marked
        sections where you can edit dynamic content.
        ============================================ -->
+  <!-- Initialize Lucide Icons handled externally -->
 
+
+  <!-- Journey Orchestrator -->
   
 
-  
+  <script defer src="{{ get_asset_url('hubspot-templates-v2/js/msp-scrollable.js') }}" data-static-fallback="./js/msp-scrollable.js"></script>
 
-    <!-- Journey scripts -->
-  <script src="{{ get_asset_url('hubspot-templates-v2/js/msp-scrollable.js') }}"></script>
-
-{{ standard_footer_includes }}
+  {{ standard_footer_includes }}
 </body>
 </html>

@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
+import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { createHmac } from 'crypto';
 
 // ⚠️ TESTING ONLY - Never use in production!
@@ -13,12 +13,15 @@ function generateSignature(payload: any): string {
         .toLowerCase();
 }
 
-export async function POST(request: NextRequest) {
+export default async function handler(req: VercelRequest, res: VercelResponse) {
+    if (req.method !== 'POST') {
+        return res.status(405).json({ error: 'Method not allowed' });
+    }
+
     console.log('🔵 KYC API route called');
+
     try {
-        const body = await request.json();
-        console.log('📝 Request body:', { email: body.email, executiveName: body.executiveName });
-        const { email, executiveName, businessAddress, city, state, zipCode, country } = body;
+        const { email, executiveName, businessAddress, city, state, zipCode, country } = req.body;
 
         // Split executive name
         const [firstName, ...lastNameParts] = executiveName.trim().split(' ');
@@ -27,7 +30,7 @@ export async function POST(request: NextRequest) {
         // Create Veriff session payload
         const payload = {
             verification: {
-                callback: 'https://webhook.site/unique-url-here', // Replace with your webhook.site URL
+                callback: 'https://webhook.site/unique-url-here',
                 person: {
                     firstName,
                     lastName
@@ -63,31 +66,27 @@ export async function POST(request: NextRequest) {
         if (!response.ok) {
             const error = await response.text();
             console.error('Veriff API error:', error);
-            return NextResponse.json(
-                { success: false, error: 'Failed to create Veriff session' },
-                { status: response.status }
-            );
+            return res.status(response.status).json({
+                success: false,
+                error: 'Failed to create Veriff session'
+            });
         }
 
         const data = await response.json();
         console.log('Veriff session created:', data.verification.id);
 
-        return NextResponse.json({
+        return res.status(200).json({
             success: true,
-            sessionToken: data.verification.id,  // SDK needs this, not URL
+            sessionToken: data.verification.id,
             sessionId: data.verification.id,
-            sessionUrl: data.verification.url   // Keep for reference
+            sessionUrl: data.verification.url
         });
     } catch (error: any) {
         console.error('❌ Error creating Veriff session:', error);
-        console.error('Error details:', error.message, error.stack);
-        return NextResponse.json(
-            {
-                success: false,
-                error: 'Internal server error',
-                details: error.message  // Include error details for debugging
-            },
-            { status: 500 }
-        );
+        return res.status(500).json({
+            success: false,
+            error: 'Internal server error',
+            details: error.message
+        });
     }
 }
