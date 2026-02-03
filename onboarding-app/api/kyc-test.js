@@ -91,22 +91,10 @@ export default async function handler(request) {
         // Create Veriff session payload
         const payload = {
             verification: {
-                callback: 'https://webhook.site/placeholder',
+                callback: 'https://veriff.com',
                 person: {
                     firstName,
                     lastName
-                },
-                document: {
-                    country: veriffCountry,
-                    type: 'DRIVERS_LICENSE'
-                },
-                address: {
-                    fullAddress: `${businessAddress || ''}, ${city || ''}, ${state || ''} ${zipCode || ''}`.trim(),
-                    // supportedCountries is NOT a documented field for session creation in typical public docs
-                    // Removing it to be safe, or verifying if it was needed. 
-                    // Reverting to sending it but making sure format is correct.
-                    // Actually, if it causes 400, safer to omit if optional. 
-                    // Keeping it for now but strict array.
                 },
                 vendorData: email,
                 timestamp: new Date().toISOString()
