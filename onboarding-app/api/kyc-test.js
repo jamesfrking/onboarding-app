@@ -88,32 +88,28 @@ export default async function handler(request) {
         // Map country
         const veriffCountry = COUNTRY_MAP[country] || 'US';
 
-        // Create Veriff session payload
+        // Create Veriff session payload - using absolute minimum per docs
+        // "The minimum required request body is an empty verification object"
         const payload = {
             verification: {
-                callback: 'https://veriff.com',
                 person: {
                     firstName,
                     lastName
                 },
-                vendorData: email,
-                timestamp: new Date().toISOString()
+                vendorData: email
             }
         };
 
-        // FIX: Stringify once to ensure signature matches body
         const payloadString = JSON.stringify(payload);
-        const signature = await generateSignature(payloadString);
 
         console.log('📝 Sending payload to Veriff:', payloadString);
 
-        // Call Veriff API
+        // Call Veriff API - NO X-HMAC-SIGNATURE needed for POST /sessions per docs
         const veriffResponse = await fetch('https://stationapi.veriff.com/v1/sessions', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'X-AUTH-CLIENT': VERIFF_API_KEY,
-                'X-HMAC-SIGNATURE': signature
+                'X-AUTH-CLIENT': VERIFF_API_KEY
             },
             body: payloadString
         });
