@@ -1,0 +1,823 @@
+<!--
+  templateType: page
+  isAvailableForNewContent: true
+  label: MSP Scrollable Landing Page (Hardcoded)
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ content.html_title }}</title>
+  {{ standard_header_includes }}
+  
+  <!-- HubSpot Tracking Code (Backup if standard_header_includes doesn't work) -->
+  <script type="text/javascript" id="hs-script-loader" async defer src="//js-na2.hs-scripts.com/46424092.js"></script>
+  
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <!-- Lucide Icons CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/lucide@latest/dist/umd/lucide.min.js"></script>
+  
+  <!-- ============================================
+       STYLES (Visual Design)
+       ============================================
+       This section controls colors, fonts, animations, and layout.
+       Most content changes won't require editing this section.
+       ============================================ -->
+    <link rel="stylesheet" href="{{ get_asset_url('hubspot-templates-v2/css/msp-scrollable.css') }}">
+
+</head>
+<body class="bg-black text-white overflow-x-hidden">
+  {{ standard_body_prefix }}
+
+  <!--
+  ╔════════════════════════════════════════════════════════════════════════════╗
+  ║                   CONTENT EDITING GUIDE FOR NON-TECHNICAL USERS            ║
+  ╚════════════════════════════════════════════════════════════════════════════╝
+  
+  This file contains all the content for the interactive partner journey landing page.
+  Use your browser's Find function (Ctrl+F or Cmd+F) to search for these sections:
+  
+  STATIC CONTENT (HTML):
+  - Search for "STAGE 0: HERO" → Edit the main headline and intro text
+  - Search for "STAGE 1: PERSONA" → Edit the 4 partner type cards (MSP, VAR, Distributor, SI)
+  - Search for "STAGE 2: GOAL" → Edit the 4 business objective options
+  - Search for "EMAIL CAPTURE MODAL" → Edit the email form text
+  - Search for "PROGRESS TRACKER" → Edit the left navigation labels
+  
+  DYNAMIC CONTENT (JavaScript):
+  - Search for "EDIT SECTION 1: PERSONA DYNAMIC TEXT" → Edit console messages for each persona
+  - Search for "EDIT SECTION 2: TELEMETRY MESSAGES" → Edit the console feed messages
+  - Search for "EDIT SECTION 3: GOAL DYNAMIC TEXT" → Edit console messages for each goal
+  - Search for "EDIT SECTION 4: STORY CARDS" → Edit the 3 cards shown for each goal
+  - Search for "EDIT SECTION 5: CTA BUTTONS" → Edit the final call-to-action buttons
+  
+  TIPS:
+  - Look for comments that start with "EDIT:" to find editable text
+  - Don't change anything in <style> tags (that's visual design)
+  - Don't change data-* attributes or id="" values (those power the functionality)
+  - Test your changes on a preview page before publishing
+  -->
+
+  {% raw %}
+  <script>
+    (function(){
+      try {
+        // Remove HubL include tokens when previewing statically (tolerant match)
+        var walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+        var rm = [], n;
+        var tokenRe = /\{\{\s*standard_(body_prefix|header_includes|footer_includes)\s*\}\}|\{%\s*raw\s*%\}|\{%\s*endraw\s*%\}/i;
+        while ((n = walker.nextNode())) {
+          var txt = (n.textContent || '').replace(/\u00a0/g, ' ').trim();
+          if (!txt) continue;
+          if (tokenRe.test(txt)) rm.push(n);
+        }
+        rm.forEach(function(t){ if (t.parentNode) t.parentNode.removeChild(t); });
+      } catch(e) {}
+    })();
+  </script>
+  {% endraw %}
+
+  <!-- ============================================
+       PAGE CONTENT STARTS HERE
+       ============================================
+       Below you'll find all the text, headlines, and descriptions
+       that visitors see. Look for section comments to find specific content.
+       ============================================ -->
+
+  <div class="relative">
+    <!-- ============================================
+         PROGRESS TRACKER (Left Side Navigation)
+         ============================================
+         Edit the labels for each stage of the journey here.
+         ============================================ -->
+    <!-- Floating Progress Tracker -->
+    <aside class="progress-dock xl:flex fixed top-1/2 left-0 flex-col gap-4 z-40" data-visibility="hidden">
+      <button class="progress-pill" data-stage="mission-hero" data-stage-state="active">
+        <span class="progress-index">0</span>
+        <div>
+          <p class="text-xs uppercase tracking-[0.25em] text-slate-300">Launch</p>
+          <p class="text-sm font-semibold text-white">Mission Brief</p>
+        </div>
+      </button>
+      <button class="progress-pill" data-stage="mission-persona" data-stage-state="hidden">
+        <span class="progress-index">1</span>
+        <div>
+          <p class="text-xs uppercase tracking-[0.25em] text-slate-300">Signal</p>
+          <p class="text-sm font-semibold text-white">Choose Persona</p>
+        </div>
+      </button>
+      <button class="progress-pill" data-stage="mission-goal" data-stage-state="hidden">
+        <span class="progress-index">2</span>
+        <div>
+          <p class="text-xs uppercase tracking-[0.25em] text-slate-300">Trajectory</p>
+          <p class="text-sm font-semibold text-white">Define Objective</p>
+        </div>
+      </button>
+      <button class="progress-pill" data-stage="mission-readiness" data-stage-state="hidden">
+        <span class="progress-index">3</span>
+        <div>
+          <p class="text-xs uppercase tracking-[0.25em] text-slate-300">Readiness</p>
+          <p class="text-sm font-semibold text-white">Pre-flight</p>
+        </div>
+      </button>
+      <button class="progress-pill" data-stage="mission-cta" data-stage-state="hidden">
+        <span class="progress-index">4</span>
+        <div>
+          <p class="text-xs uppercase tracking-[0.25em] text-slate-300">Ignite</p>
+          <p class="text-sm font-semibold text-white">Launch Action</p>
+        </div>
+      </button>
+    </aside>
+
+    <main id="mission-scroll">
+      <!-- ============================================
+           STAGE 0: HERO / MISSION BRIEF
+           ============================================
+           This is the first screen visitors see.
+           Edit: Headline, subheadline, button text, and intro copy.
+           ============================================ -->
+      <!-- Hero / Mission Brief -->
+      <section id="mission-hero" data-stage="mission-hero" class="relative min-h-screen flex items-center justify-center px-6 py-20 overflow-hidden">
+        <div class="absolute inset-0 stellar-gradient"></div>
+        <div class="absolute inset-0 hero-beam"></div>
+        <div class="absolute inset-0 hero-particles pointer-events-none"></div>
+        <div class="absolute inset-x-0 bottom-0 hero-grid"></div>
+
+        <div class="absolute top-6 left-14 z-20 hidden sm:block">
+          <img
+            src="{{ get_asset_url('/hubspot-templates/6853ba7594664768c62ab96b_Logo-wide.png') }}"
+            alt="WanAware"
+            class="h-8 md:h-10 drop-shadow-[0_0_18px_rgba(34,211,238,0.25)]"
+          />
+        </div>
+
+        <div class="relative z-10 w-full max-w-6xl grid lg:grid-cols-[1.05fr_0.95fr] gap-16 items-center">
+          <div class="space-y-10">
+            <!-- EDIT: Badge label above headline -->
+            <div class="inline-flex items-center gap-3 px-4 py-2 rounded-full border border-cyan-400/40 bg-cyan-400/10 text-sm uppercase tracking-[0.28em] text-cyan-200/90">
+              <span>WanAware Partner Program</span>
+            </div>
+
+            <!-- EDIT: Main headline (3 lines) -->
+            <h1 class="text-5xl md:text-7xl font-extrabold leading-tight">
+              <span class="text-white block">Design your</span>
+              <span class="text-white block">partner journey</span>
+              <span class="text-cyan-400 block">and ignite growth</span>
+            </h1>
+
+            <!-- EDIT: Subheadline / description -->
+            <p class="text-lg md:text-xl text-slate-200/90 max-w-2xl">
+              Choose your motion, align on outcomes, and activate a partner playbook that turns visibility into revenue.
+            </p>
+
+            <!-- EDIT: Call-to-action button text -->
+            <div class="flex flex-wrap items-center gap-5">
+              <button id="begin-mission" class="min-w-[240px] px-10 md:px-12 py-4 text-lg rounded-full bg-cyan-500 font-semibold text-white shadow-lg shadow-cyan-500/30 hover:bg-cyan-400 transition focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-slate-900 focus:ring-cyan-300 animate-pulse hover:animate-none">
+                Begin Mission
+              </button>
+            </div>
+            <!-- EDIT: Instruction text below button -->
+            <div class="text-xs uppercase tracking-[0.3em] text-cyan-200/85">Click Begin Mission to continue</div>
+
+            <!-- EDIT: Summary text (updates dynamically after persona selection) -->
+            <div class="text-sm text-slate-300/90 max-w-sm" id="mission-summary">
+              You'll move through mission control next.
+            </div>
+          </div>
+
+          <div class="relative flex items-center justify-center">
+            <div class="absolute inset-0 blur-3xl bg-cyan-500/30 pointer-events-none"></div>
+            <div class="relative w-[340px] h-[340px] md:w-[380px] md:h-[380px] rocket-container">
+              <div class="rocket-glow"></div>
+              <div class="rocket-scan" aria-hidden="true"></div>
+              <div class="rocket-spotlight" aria-hidden="true"></div>
+              <div class="orbit-container">
+                <div class="orbit-icon">
+                  <i data-lucide="shield" class="w-8 h-8 text-white"></i>
+                </div>
+                <div class="orbit-icon">
+                  <i data-lucide="zap" class="w-8 h-8 text-white"></i>
+                </div>
+                <div class="orbit-icon">
+                  <i data-lucide="settings" class="w-8 h-8 text-white"></i>
+                </div>
+                <div class="orbit-icon">
+                  <i data-lucide="activity" class="w-8 h-8 text-white"></i>
+                </div>
+              </div>
+              <div class="relative z-10 w-full h-full flex items-center justify-center">
+                <img
+                  src="{{ get_asset_url('/hubspot-templates/67219f1c1720b4fe6b600386_WanAware-Rocket-Gradient.png') }}"
+                  alt="WanAware Rocket"
+                  class="w-full h-auto drop-shadow-2xl"
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================================
+           STAGE 1: PERSONA SELECTION
+           ============================================
+           Visitors choose their partner type here.
+           Edit: Stage title, description, and each persona card (4 total).
+           ============================================ -->
+      <!-- Stage 1: Persona Selection -->
+      <section id="mission-persona" data-stage="mission-persona" data-revealed="false" class="relative min-h-screen py-24 px-6">
+        <div class="absolute inset-0 bg-gradient-to-b from-black via-slate-950 to-slate-900"></div>
+        <div class="stage-glow"></div>
+        <div class="relative z-10 max-w-7xl mx-auto">
+          <!-- EDIT: Stage 1 header -->
+          <div class="text-center mb-12">
+            <p class="text-sm uppercase tracking-[0.3em] text-cyan-300/80">Stage 1 · Identify</p>
+            <h2 class="text-4xl md:text-5xl font-bold mt-4">Who is charting this course?</h2>
+            <p class="mt-4 text-lg text-slate-300/90 max-w-3xl mx-auto">
+              Select the mission badge that best represents you.
+            </p>
+          </div>
+
+          <div id="persona-layout" class="grid gap-8 lg:grid-cols-[1.1fr_0.9fr] items-start">
+            <div id="persona-grid" class="grid gap-5 md:grid-cols-2">
+              <!-- EDIT: Persona Card 1 - MSP -->
+              <button class="persona-badge" data-persona="msp">
+                <span class="persona-halo"></span>
+                <div class="flex items-start justify-between gap-6">
+                  <div class="flex items-center justify-center w-16 h-16 rounded-2xl bg-cyan-500/20 border border-cyan-300/40">
+                    <i data-lucide="satellite" class="w-9 h-9 text-cyan-300"></i>
+                  </div>
+                  <div class="text-right text-xs uppercase tracking-[0.3em] text-cyan-300/70">MSP Orbit</div>
+                </div>
+                <div class="mt-6 space-y-3">
+                  <!-- EDIT: MSP title -->
+                  <h3 class="text-2xl font-semibold">Managed Service Provider</h3>
+                  <p class="text-slate-300/90 text-sm">Embed WanAware in your managed offerings to deliver proactive monitoring, SLA assurance, and executive-ready reporting, without agent sprawl.</p>
+                  <div class="flex items-center gap-2 text-sm text-cyan-200/80">
+                    <i data-lucide="radar" class="w-4 h-4"></i>
+                    <span>Built for continuous service delivery</span>
+                  </div>
+                </div>
+              </button>
+
+              <!-- EDIT: Persona Card 2 - Distributor -->
+              <button class="persona-badge" data-persona="distributor">
+                <span class="persona-halo"></span>
+                <div class="flex items-start justify-between gap-6">
+                  <div class="flex items-center justify-center w-16 h-16 rounded-2xl bg-blue-500/20 border border-blue-300/40">
+                    <i data-lucide="network" class="w-9 h-9 text-blue-300"></i>
+                  </div>
+                  <div class="text-right text-xs uppercase tracking-[0.3em] text-blue-300/70">Distributor Nexus</div>
+                </div>
+                <div class="mt-6 space-y-3">
+                  <h3 class="text-2xl font-semibold">Distributor</h3>
+                  <p class="text-slate-300/90 text-sm">Equip your reseller network with a white-label observability portal, partner enablement kits, and margin controls that scale across regions.</p>
+                  <div class="flex items-center gap-2 text-sm text-blue-200/80">
+                    <i data-lucide="layers" class="w-4 h-4"></i>
+                    <span>Ideal for marketplace amplification</span>
+                  </div>
+                </div>
+              </button>
+
+              <!-- EDIT: Persona Card 3 - System Integrator -->
+              <button class="persona-badge" data-persona="si">
+                <span class="persona-halo"></span>
+                <div class="flex items-start justify-between gap-6">
+                  <div class="flex items-center justify-center w-16 h-16 rounded-2xl bg-purple-500/20 border border-purple-300/40">
+                    <i data-lucide="cpu" class="w-9 h-9 text-purple-300"></i>
+                  </div>
+                  <div class="text-right text-xs uppercase tracking-[0.3em] text-purple-300/70">SI Command</div>
+                </div>
+                <div class="mt-6 space-y-3">
+                  <h3 class="text-2xl font-semibold">System Integrator</h3>
+                  <p class="text-slate-300/90 text-sm">Integrate observability into modernization programs to de-risk cutovers, accelerate outcomes, and satisfy compliance evidence on day one.</p>
+                  <div class="flex items-center gap-2 text-sm text-purple-200/80">
+                    <i data-lucide="git-commit" class="w-4 h-4"></i>
+                    <span>Curated for lifecycle orchestration</span>
+                  </div>
+                </div>
+              </button>
+
+              <!-- EDIT: Persona Card 4 - Technology Advisor -->
+              <button class="persona-badge" data-persona="advisor">
+                <span class="persona-halo"></span>
+                <div class="flex items-start justify-between gap-6">
+                  <div class="flex items-center justify-center w-16 h-16 rounded-2xl bg-sky-500/20 border border-sky-300/40">
+                    <i data-lucide="compass" class="w-9 h-9 text-sky-300"></i>
+                  </div>
+                  <div class="text-right text-xs uppercase tracking-[0.3em] text-sky-300/70">Advisor Signal</div>
+                </div>
+                <div class="mt-6 space-y-3">
+                  <h3 class="text-2xl font-semibold">Technology Advisor</h3>
+                  <p class="text-slate-300/90 text-sm">Refer qualified opportunities to WanAware and earn predictable, recurring payouts on conversions and renewals.</p>
+                  <div class="flex items-center gap-2 text-sm text-sky-200/80">
+                    <i data-lucide="sparkle" class="w-4 h-4"></i>
+                    <span>Advisory-led. Zero-overhead. Recurring payouts.</span>
+                  </div>
+                </div>
+              </button>
+            </div>
+            <!-- MSP detail panel (revealed when MSP selected) -->
+            <div id="msp-detail-panel" class="readiness-panel space-y-6 hidden w-full lg:max-w-none">
+              <div class="flex items-center justify-between mb-4">
+                <div>
+                  <p class="text-xs uppercase tracking-[0.35em] text-cyan-300/70">MSP Setup</p>
+                  <h3 class="text-2xl font-semibold mt-2">Tune this journey for your MSP</h3>
+                </div>
+                <button id="change-persona-btn" class="btn-ghost text-sm">Change badge</button>
+              </div>
+
+              <div class="flex gap-8 items-start">
+                <div class="flex-1 space-y-6 msp-controls">
+                <div class="ready-system-row" data-system="msp-offers" data-complete="false">
+                  <div class="ready-row-header">
+                    <div class="ready-status-ring">
+                      <i data-lucide="package" class="w-4 h-4"></i>
+                    </div>
+                    <p class="ready-row-title">What will you deliver today?</p>
+                  </div>
+                  <div class="flex flex-wrap gap-2">
+                    <button type="button" class="ready-chip msp-offer-chip" data-offer="NOC">NOC</button>
+                    <button type="button" class="ready-chip msp-offer-chip" data-offer="SD-WAN">SD-WAN</button>
+                    <button type="button" class="ready-chip msp-offer-chip" data-offer="SASE/SSE">SASE/SSE</button>
+                    <button type="button" class="ready-chip msp-offer-chip" data-offer="End-User IT">End-User IT</button>
+                    <button type="button" class="ready-chip msp-offer-chip" data-offer="App Performance">App Performance</button>
+                    <button type="button" class="ready-chip msp-offer-chip" data-offer="Cloud Networking">Cloud Networking</button>
+                  </div>
+                </div>
+
+                <div class="readiness-divider"></div>
+
+                <div class="ready-system-row" data-system="msp-size" data-complete="false">
+                  <div class="ready-row-header">
+                    <div class="ready-status-ring">
+                      <i data-lucide="users" class="w-4 h-4"></i>
+                    </div>
+                    <p class="ready-row-title">Target customer size</p>
+                  </div>
+                  <div class="flex flex-wrap gap-2">
+                    <button type="button" class="ready-chip msp-size-btn" data-size="SMB">SMB</button>
+                    <button type="button" class="ready-chip msp-size-btn" data-size="Mid-market">Mid-market</button>
+                    <button type="button" class="ready-chip msp-size-btn" data-size="Enterprise">Enterprise</button>
+                    <button type="button" class="ready-chip msp-size-btn" data-size="Mixed">Mixed</button>
+                  </div>
+                </div>
+
+                <div class="readiness-divider"></div>
+
+                <div class="ready-system-row" data-system="msp-regions" data-complete="false">
+                  <div class="ready-row-header">
+                    <div class="ready-status-ring">
+                      <i data-lucide="globe" class="w-4 h-4"></i>
+                    </div>
+                    <p class="ready-row-title">Geography served</p>
+                  </div>
+                  <div class="flex flex-wrap gap-2">
+                    <button type="button" class="ready-chip msp-region-chip" data-region="US">US</button>
+                    <button type="button" class="ready-chip msp-region-chip" data-region="Canada">Canada</button>
+                    <button type="button" class="ready-chip msp-region-chip" data-region="EU/UK">EU/UK</button>
+                    <button type="button" class="ready-chip msp-region-chip" data-region="APAC">APAC</button>
+                    <button type="button" class="ready-chip msp-region-chip" data-region="LATAM">LATAM</button>
+                  </div>
+                </div>
+
+                <div class="readiness-divider"></div>
+
+                <div class="ready-system-row" data-system="msp-whitelabel" data-complete="false">
+                  <div class="ready-row-header">
+                    <div class="ready-status-ring">
+                      <i data-lucide="tag" class="w-4 h-4"></i>
+                    </div>
+                    <p class="ready-row-title">White-label required?</p>
+                  </div>
+                  <div class="flex gap-2">
+                    <button type="button" class="ready-bool-btn msp-whitelabel-btn" data-val="Yes">Yes</button>
+                    <button type="button" class="ready-bool-btn msp-whitelabel-btn" data-val="No">No</button>
+                  </div>
+                </div>
+
+                <div class="pt-4 text-center col-span-full">
+                  <button id="msp-confirm" class="btn-primary" disabled>Confirm & Continue</button>
+                </div>
+              </div>
+            </div>
+
+            <div class="console-panel space-y-8" id="persona-console">
+              <div>
+                <p class="text-xs uppercase tracking-[0.35em] text-cyan-300/70">Signal Console</p>
+                <h3 class="text-3xl font-semibold mt-4" id="persona-readout">Awaiting partner badge…</h3>
+                <p class="mt-3 text-slate-300/80" id="persona-subtext">Choose the identity that matches your motion to unlock curated guidance, proof points, and actions.</p>
+              </div>
+              <div class="rounded-2xl border border-cyan-400/30 bg-cyan-400/10 px-5 py-5 text-sm text-cyan-100" id="persona-signal">
+                Calibration pending. Select a badge to light up the console.
+              </div>
+              <div class="space-y-4" id="telemetry-log">
+                <div class="rounded-2xl border border-cyan-400/20 bg-cyan-400/10 text-sm text-cyan-100 telemetry-entry" data-timestamp="SYS INIT">
+                  <span class="telemetry-message">Console standing by for your signal.</span>
+                </div>
+                <div class="rounded-2xl border border-blue-400/30 text-sm text-slate-200/90 telemetry-entry" data-timestamp="SYS READY">
+                  <span class="telemetry-message">Every choice shapes the narrative, proof, and calls-to-action ahead.</span>
+                </div>
+              </div>
+              <div class="pt-2 text-center">
+                <div class="text-xs uppercase tracking-[0.35em] text-slate-400">Lock your badge to proceed</div>
+                <button id="persona-confirm" class="mt-4 inline-flex px-6 py-3 rounded-full border border-cyan-400/40 bg-cyan-400/10 text-cyan-100 font-semibold transition disabled:opacity-40 disabled:cursor-not-allowed hover:bg-cyan-400/20" disabled>
+                  Confirm Persona & Continue
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================================
+           STAGE 2: GOAL & OBJECTIVE SELECTION
+           ============================================
+           Visitors choose their business objective and pain points.
+           Edit: Stage title, 4 goal options, and 4 pain point chips.
+           ============================================ -->
+      <!-- Stage 2: Goal & Friction Console -->
+      <section id="mission-goal" data-stage="mission-goal" data-revealed="false" class="relative min-h-screen py-24 px-6">
+        <div class="absolute inset-0 bg-gradient-to-b from-slate-950 via-slate-900 to-black"></div>
+        <div class="stage-glow"></div>
+
+        <div class="relative z-10 max-w-6xl mx-auto">
+          <!-- EDIT: Stage 2 header -->
+          <div class="text-center mb-16">
+            <p class="text-sm uppercase tracking-[0.3em] text-cyan-300/80">Stage 2 · Trajectory</p>
+            <h2 class="text-4xl md:text-5xl font-bold mt-4">What outcome are we engineering?</h2>
+            <p class="mt-4 text-lg text-slate-300/90 max-w-3xl mx-auto" id="goal-intro">
+              Select the destination you want to reach and the friction you need cleared. We'll tune the playbooks and proof around your choices.
+            </p>
+          </div>
+
+          <div class="space-y-10">
+            <div class="grid gap-5 sm:grid-cols-2 lg:grid-cols-4" id="goal-grid">
+              <!-- EDIT: Goal Option 1 - Recurring Revenue -->
+              <button class="goal-toggle" data-goal="recurring">
+                <div>
+                  <p class="text-xs uppercase tracking-[0.35em] text-cyan-300/80">Objective</p>
+                  <!-- EDIT: Goal 1 title -->
+                  <h3 class="text-xl font-semibold mt-1">Grow recurring revenue</h3>
+                  <!-- EDIT: Goal 1 description -->
+                  <p class="text-sm text-slate-300/80 mt-2">Engineer subscription bundles, automation playbooks, and pricing motions that boost MRR.</p>
+                </div>
+                <i data-lucide="repeat" class="w-9 h-9 text-cyan-300"></i>
+              </button>
+
+              <!-- EDIT: Goal Option 2 - Managed Services -->
+              <button class="goal-toggle" data-goal="services">
+                <div>
+                  <p class="text-xs uppercase tracking-[0.35em] text-sky-300/80">Objective</p>
+                  <!-- EDIT: Goal 2 title -->
+                  <h3 class="text-xl font-semibold mt-1">Launch new managed services</h3>
+                  <!-- EDIT: Goal 2 description -->
+                  <p class="text-sm text-slate-300/80 mt-2">Productize offers faster with deployment blueprints, enablement paths, and co-branded assets.</p>
+                </div>
+                <i data-lucide="rocket" class="w-9 h-9 text-sky-300"></i>
+              </button>
+
+              <!-- EDIT: Goal Option 3 - Client Retention -->
+              <button class="goal-toggle" data-goal="retention">
+                <div>
+                  <p class="text-xs uppercase tracking-[0.35em] text-blue-300/80">Objective</p>
+                  <!-- EDIT: Goal 3 title -->
+                  <h3 class="text-xl font-semibold mt-1">Strengthen client retention</h3>
+                  <!-- EDIT: Goal 3 description -->
+                  <p class="text-sm text-slate-300/80 mt-2">Instrument experience dashboards, QBR automation, and customer marketing cadences.</p>
+                </div>
+                <i data-lucide="shield" class="w-9 h-9 text-blue-300"></i>
+              </button>
+
+              <!-- EDIT: Goal Option 4 - Co-Sell -->
+              <button class="goal-toggle" data-goal="cosell">
+                <div>
+                  <p class="text-xs uppercase tracking-[0.35em] text-purple-300/80">Objective</p>
+                  <!-- EDIT: Goal 4 title -->
+                  <h3 class="text-xl font-semibold mt-1">Accelerate co-sell velocity</h3>
+                  <!-- EDIT: Goal 4 description -->
+                  <p class="text-sm text-slate-300/80 mt-2">Orchestrate marketplace offers, shared pipeline visibility, and field activation campaigns.</p>
+                </div>
+                <i data-lucide="link" class="w-9 h-9 text-purple-300"></i>
+              </button>
+            </div>
+
+            <div class="console-panel space-y-8" id="goal-console-secondary">
+              <div class="flex justify-end -mt-2 -mb-2">
+                <button id="change-goal-btn" class="btn-ghost text-sm hidden">Change objective</button>
+              </div>
+              <div class="fuel-gauge" aria-hidden="true"><div id="fuel-fill" class="fuel-fill"></div></div>
+              <div>
+                <p class="text-xs uppercase tracking-[0.35em] text-cyan-300/70">Mission Console</p>
+                <h3 class="text-2xl font-semibold mt-3" id="console-readout">Select an objective to populate controls.</h3>
+                <p class="mt-3 text-slate-300/80" id="console-subtext">Priority, friction, and telemetry sync in real-time.</p>
+              </div>
+
+              <div class="space-y-4">
+                <div class="flex items-center justify-between text-sm text-slate-300/80">
+                  <span>Execution intensity</span>
+                  <span id="priority-label">70 · Momentum</span>
+                </div>
+                <input type="range" min="10" max="100" value="70" step="10" class="mission-slider" id="priority-slider" aria-label="Mission intensity slider">
+              </div>
+
+              <div>
+                <p class="text-xs uppercase tracking-[0.35em] text-slate-300/70 mb-3">Remove friction</p>
+                <div class="flex flex-wrap" id="painpoint-group">
+                  <button class="pain-chip" data-pain="pipeline">
+                    <i data-lucide="activity" class="w-4 h-4"></i>
+                    Pipeline coverage
+                  </button>
+                  <button class="pain-chip" data-pain="packaging">
+                    <i data-lucide="layers" class="w-4 h-4"></i>
+                    Offer packaging
+                  </button>
+                  <button class="pain-chip" data-pain="enablement">
+                    <i data-lucide="monitor" class="w-4 h-4"></i>
+                    Partner enablement
+                  </button>
+                  <button class="pain-chip" data-pain="automation">
+                    <i data-lucide="settings" class="w-4 h-4"></i>
+                    Manual workflows
+                  </button>
+                </div>
+              </div>
+
+              <div class="ui-divider mt-6 mb-2"></div>
+
+              <div id="trajectory-controls" class="readiness-panel space-y-6 hidden">
+                <div class="ready-system-row" data-system="traj-time" data-complete="false">
+                  <div class="ready-row-header">
+                    <div class="ready-status-ring">
+                      <i data-lucide="clock" class="w-4 h-4"></i>
+                    </div>
+                    <p class="ready-row-title">Time to start</p>
+                  </div>
+                  <div class="traj-slider">
+                    <input id="tts-slider" type="range" min="0" max="3" step="1" value="1" aria-label="Time to start banded slider">
+                    <div class="traj-ticks"><span>Now</span><span>30d</span><span>30–90d</span><span>90d+</span></div>
+                  </div>
+                  <div class="ready-help">We pace enablement to your window.</div>
+                </div>
+
+                <div class="readiness-divider"></div>
+
+                <div class="ready-system-row" data-system="traj-owner" data-complete="false">
+                  <div class="ready-row-header">
+                    <div class="ready-status-ring">
+                      <i data-lucide="user-check" class="w-4 h-4"></i>
+                    </div>
+                    <p class="ready-row-title">Who owns this motion?</p>
+                  </div>
+                  <div class="traj-avatars">
+                    <button type="button" class="traj-avatar" data-traj="process_owner" data-value="technical_owner"><i data-lucide="cpu" class="w-4 h-4"></i> Technical Owner</button>
+                    <button type="button" class="traj-avatar" data-traj="process_owner" data-value="sales_cs"><i data-lucide="handshake" class="w-4 h-4"></i> Sales/CS</button>
+                    <button type="button" class="traj-avatar" data-traj="process_owner" data-value="exec_sponsor"><i data-lucide="star" class="w-4 h-4"></i> Executive Sponsor</button>
+                    <button type="button" class="traj-avatar" data-traj="process_owner" data-value="no_owner"><i data-lucide="circle-help" class="w-4 h-4"></i> No clear owner</button>
+                  </div>
+                  <div class="ready-help">Ensures we guide the right stakeholders.</div>
+                </div>
+
+                <div class="readiness-divider"></div>
+
+                <div class="ready-system-row" data-system="traj-band" data-complete="false">
+                  <div class="ready-row-header">
+                    <div class="ready-status-ring">
+                      <i data-lucide="users" class="w-4 h-4"></i>
+                    </div>
+                    <p class="ready-row-title">Active customer count (core segment)</p>
+                  </div>
+                  <div class="flex flex-wrap gap-2">
+                    <button type="button" class="ready-chip traj-btn" data-traj="customer_band" data-value="0_5">0–5</button>
+                    <button type="button" class="ready-chip traj-btn" data-traj="customer_band" data-value="5_20">5–20</button>
+                    <button type="button" class="ready-chip traj-btn" data-traj="customer_band" data-value="20_50">20–50</button>
+                    <button type="button" class="ready-chip traj-btn" data-traj="customer_band" data-value="50_plus">50+</button>
+                  </div>
+                  <div class="ready-help">Right-size your revenue or enablement path.</div>
+                </div>
+              </div>
+
+              <div class="rounded-2xl border border-cyan-400/25 bg-cyan-400/10 px-5 py-5 text-sm text-cyan-100" id="goal-signal">
+                Anchor an objective and pinpoint the friction you'd like removed. When you're ready, advance to the storyboard.
+              </div>
+              <div class="pt-2 text-center">
+                <div class="text-xs uppercase tracking-[0.35em] text-slate-400">Lock your objective to proceed</div>
+                <button id="goal-confirm" class="mt-4 inline-flex px-6 py-3 rounded-full border border-cyan-400/40 bg-cyan-400/10 text-cyan-100 font-semibold transition disabled:opacity-40 disabled:cursor-not-allowed hover:bg-cyan-400/20" disabled>
+                  Confirm Objective & Continue
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================================
+           STAGE 3: STORYBOARD (Dynamic Content)
+           ============================================
+           This section displays 3 story cards that adapt based on
+           the persona and goal selected. Content is generated by
+           JavaScript from the configuration below.
+           To edit: Scroll down to the JavaScript section and find
+           the 'storyDeck' object.
+           ============================================ -->
+      <!-- Stage 3: Readiness -->
+      <section id="mission-readiness" data-stage="mission-readiness" data-revealed="false" class="relative min-h-screen py-24 px-6">
+        <div class="absolute inset-0 bg-gradient-to-b from-black via-slate-950 to-slate-900"></div>
+        <div class="stage-glow"></div>
+
+        <div class="relative z-10 max-w-6xl mx-auto">
+          <div class="flex flex-col md:flex-row md:items-end md:justify-between gap-8 mb-16">
+            <div>
+              <p class="text-sm uppercase tracking-[0.3em] text-cyan-300/80">Stage 3 · Readiness</p>
+              <h2 class="text-4xl md:text-5xl font-bold mt-4">Pre‑flight readiness check</h2>
+              <p class="mt-4 text-lg text-slate-300/90 max-w-2xl" id="readiness-intro">
+                Review your objective and trajectory. We’ll confirm owners and pacing before launching tailored CTAs.
+              </p>
+            </div>
+            <button id="readiness-advance" class="self-start md:self-auto px-6 py-3 rounded-full border border-cyan-400/40 bg-cyan-400/10 text-cyan-100 font-semibold hover:bg-cyan-400/20 transition" disabled>
+              Confirm Readiness & Launch CTAs
+            </button>
+          </div>
+
+          <div id="readiness-checklist" class="readiness-panel space-y-6">
+            <div class="ready-system-row" data-system="kickoff" data-complete="false">
+              <div class="ready-row-header">
+                <div class="ready-status-ring">
+                  <i data-lucide="clock" class="w-4 h-4"></i>
+                </div>
+                <p class="ready-row-title">Kickoff window</p>
+              </div>
+              <div class="flex flex-wrap gap-2">
+                <button type="button" class="ready-chip" data-ready="kickoff" data-value="this_week">Ready this week</button>
+                <button type="button" class="ready-chip" data-ready="kickoff" data-value="next_2_weeks">Ready within 2 weeks</button>
+                <button type="button" class="ready-chip" data-ready="kickoff" data-value="next_30_days">Ready within 30 days</button>
+                <button type="button" class="ready-chip" data-ready="kickoff" data-value="unscheduled">Not ready to schedule</button>
+              </div>
+              <div class="ready-help">We'll propose the lightest-weight first step.</div>
+            </div>
+
+            <div class="readiness-divider"></div>
+
+            <div class="ready-system-row" data-system="exec" data-complete="false">
+              <div class="ready-row-header">
+                <div class="ready-status-ring">
+                  <i data-lucide="user-check" class="w-4 h-4"></i>
+                </div>
+                <p class="ready-row-title">Executive Sponsor Named</p>
+              </div>
+              <div class="flex gap-2">
+                <button type="button" class="ready-bool-btn" data-ready="exec" data-value="Yes">Yes</button>
+                <button type="button" class="ready-bool-btn" data-ready="exec" data-value="No">No</button>
+              </div>
+              <div class="ready-help">An exec backer accelerates approvals.</div>
+            </div>
+
+            <div class="readiness-divider"></div>
+
+            <div class="ready-system-row" data-system="weekly" data-complete="false">
+              <div class="ready-row-header">
+                <div class="ready-status-ring">
+                  <i data-lucide="calendar-clock" class="w-4 h-4"></i>
+                </div>
+                <p class="ready-row-title">About how much team time each week at first?</p>
+              </div>
+              <div class="flex flex-wrap gap-2">
+                <button type="button" class="ready-time-btn" data-ready="weekly" data-value="lt_1h">Quick check-ins (~30–60 min)</button>
+                <button type="button" class="ready-time-btn" data-ready="weekly" data-value="1_2h">A little hands-on (1–2 hrs)</button>
+                <button type="button" class="ready-time-btn" data-ready="weekly" data-value="3_4h">Working session each week (3–4 hrs)</button>
+                <button type="button" class="ready-time-btn" data-ready="weekly" data-value="5h_plus">We'll sprint early (5+ hrs)</button>
+              </div>
+              <div class="ready-help">Most partners start light. You can change this anytime.</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================================
+           STAGE 4: CTA DECK (Dynamic Content)
+           ============================================
+           This section displays call-to-action buttons that adapt
+           based on persona and goal. Content is generated by
+           JavaScript from the configuration below.
+           To edit: Scroll down to the JavaScript section and find
+           the 'ctaMatrix' object.
+           ============================================ -->
+      <!-- Stage 4: CTA Deck -->
+      <section id="mission-cta" data-stage="mission-cta" data-revealed="false" class="relative min-h-screen py-24 px-6">
+        <div class="absolute inset-0 bg-gradient-to-b from-slate-950 via-slate-900 to-black"></div>
+        <div class="stage-glow"></div>
+
+        <div class="relative z-10 max-w-5xl mx-auto text-center">
+          <p class="text-sm uppercase tracking-[0.3em] text-cyan-300/80">Stage 4 · Ignite</p>
+          <h2 class="text-4xl md:text-5xl font-bold mt-4" id="cta-headline">Tailored CTA ready when you are.</h2>
+          <p class="mt-4 text-lg text-slate-300/90 max-w-3xl mx-auto" id="cta-subhead">
+            Once you’ve locked your journey, pick the CTA that fits. We’ll capture it quietly before guiding you onward.
+          </p>
+
+          <div class="cta-grid grid gap-6 mt-12 md:grid-cols-3" id="cta-grid">
+            <!-- CTA buttons injected dynamically -->
+          </div>
+
+          <div class="mt-12 text-sm text-slate-400" id="cta-footnote">
+            Changing your persona or objective above will refresh these CTAs in real time.
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================================
+           EMAIL CAPTURE MODAL
+           ============================================
+           This modal appears when a visitor clicks a CTA button.
+           Edit the headline and description text below.
+           ============================================ -->
+      <!-- Email capture overlay -->
+      <div id="email-overlay" class="email-overlay" aria-hidden="true" role="dialog">
+        <div class="email-modal">
+          <!-- EDIT: Modal label -->
+          <p class="text-xs uppercase tracking-[0.35em] text-cyan-300/80">Transmission</p>
+          <!-- EDIT: Modal headline -->
+          <h3 class="text-2xl font-semibold mt-2">Where should we send it?</h3>
+          <!-- EDIT: Modal description -->
+          <p class="mt-2 text-slate-300/85">Drop your details and we'll transmit the requested materials and a copy of your mission selections.</p>
+          <div class="mt-4 space-y-3">
+            <div class="grid grid-cols-2 gap-3">
+              <input id="firstname-input" type="text" autocomplete="given-name" placeholder="First name" class="email-input" />
+              <input id="lastname-input" type="text" autocomplete="family-name" placeholder="Last name" class="email-input" />
+            </div>
+            <input id="email-input" type="email" inputmode="email" autocomplete="email" placeholder="name@company.com" class="email-input" />
+            <input id="business-name-input" type="text" autocomplete="organization" placeholder="Business name (optional)" class="email-input" />
+            <input id="business-website-input" type="url" inputmode="url" autocomplete="url" placeholder="https://company.com (optional)" class="email-input" />
+          </div>
+          <div class="email-actions">
+            <button id="email-confirm" class="btn-primary">Send and continue</button>
+            <button id="email-cancel" class="btn-ghost">Cancel</button>
+          </div>
+          <div id="email-error" class="mt-3 text-center text-sm text-rose-300" style="display:none;">Please fill in all fields to proceed.</div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- CTA launch animation overlay -->
+  <div id="launch-overlay" class="launch-overlay" aria-hidden="true">
+    <div class="launch-seq">
+      <div class="text-xs uppercase tracking-[0.35em] text-cyan-300/80">Ignition</div>
+      <div class="mt-2 text-slate-200 font-semibold">Preparing launch…</div>
+      <div class="thrust-bar"><div id="thrust-fill" class="thrust-fill"></div></div>
+    </div>
+  </div>
+
+  <!-- Fixed opt-in button (appears after scrolling past hero) -->
+  <div id="optin-float" class="optin-float">
+    <button id="optin-btn" class="optin-btn" type="button">
+      <i data-lucide="bell" class="w-5 h-5"></i>
+      <span>Subscribe to Updates</span>
+    </button>
+  </div>
+
+  <!-- Hidden form for HubSpot capture -->
+  <form id="journey-sync-form" class="hidden" data-hubspot-form="msp-journey">
+    <!-- Marketing Ops: map each name attribute to a HubSpot contact property -->
+    <input type="hidden" name="journey_first_name" value="">
+    <input type="hidden" name="journey_last_name" value="">
+    <input type="hidden" name="journey_email" value="">
+    <input type="hidden" name="journey_business_name" value="">
+    <input type="hidden" name="journey_business_website" value="">
+    <input type="hidden" name="journey_msp_offers" value="">
+    <input type="hidden" name="journey_target_customer_size" value="">
+    <input type="hidden" name="journey_regions_served" value="">
+    <input type="hidden" name="journey_white_label_required" value="">
+    <input type="hidden" name="journey_partner_type" value="">
+    <input type="hidden" name="journey_goal" value="">
+    <input type="hidden" name="journey_pain_point" value="">
+    <input type="hidden" name="journey_time_to_start" value="">
+    <input type="hidden" name="journey_process_owner" value="">
+    <input type="hidden" name="journey_customer_band" value="">
+    <input type="hidden" name="journey_kickoff_window" value="">
+    <input type="hidden" name="journey_exec_sponsor_named" value="">
+    <input type="hidden" name="journey_weekly_time_commitment" value="">
+    <input type="hidden" name="journey_priority" value="70">
+    <input type="hidden" name="journey_completion_stage" value="mission-hero">
+    <input type="hidden" name="journey_cta_selected" value="">
+  </form>
+
+  <!-- ============================================
+       JAVASCRIPT / FUNCTIONALITY
+       ============================================
+       Below this point is the JavaScript that powers the page.
+       Non-technical users: Scroll down to find clearly marked
+       sections where you can edit dynamic content.
+       ============================================ -->
+
+  
+
+  
+
+    <!-- Journey scripts -->
+  <script src="{{ get_asset_url('hubspot-templates-v2/js/msp-scrollable.js') }}"></script>
+
+{{ standard_footer_includes }}
+</body>
+</html>
