@@ -88,10 +88,28 @@ export default async function handler(request) {
         // Map country
         const veriffCountry = COUNTRY_MAP[country] || 'US';
 
-        // Create Veriff session payload - TESTED AND WORKING
-        // Empty verification object is the minimum required per docs
+        // Create Veriff session payload with person details
+        // This pre-fills the verification and stores metadata
         const payload = {
-            verification: {}
+            verification: {
+                callback: `${process.env.BACKEND_BASE_URL || 'https://api.wanaware.com'}/partner/api/kyc/webhook`,
+                person: {
+                    firstName: firstName,
+                    lastName: lastName,
+                    // Veriff uses these for matching the ID document
+                },
+                address: {
+                    fullAddress: businessAddress ? `${businessAddress}, ${city}, ${state} ${zipCode}` : undefined,
+                    country: veriffCountry
+                },
+                vendorData: JSON.stringify({
+                    email: email,
+                    companyName: body.companyLegalName || '',
+                    taxId: body.taxId || '',
+                    executiveTitle: body.executiveTitle || '',
+                    timestamp: new Date().toISOString()
+                })
+            }
         };
 
         const payloadString = JSON.stringify(payload);
