@@ -1,5 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
+import { createVeriffFrame } from '@veriff/incontext-sdk';
 
 interface KycData {
     email: string;
@@ -92,8 +93,8 @@ export default function KycPage() {
         setKycStatus('verifying');
 
         try {
-            // AML screening - no modal needed, instant results
-            const response = await fetch('/api/kyc-aml', {
+            // Use identity verification (what we have access to)
+            const response = await fetch('/api/kyc-test', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(formData),
@@ -101,35 +102,39 @@ export default function KycPage() {
 
             const result = await response.json();
 
-            if (result.success) {
+            if (result.success && result.sessionUrl) {
                 // Store data for later
                 sessionStorage.setItem('kycEmail', formData.email);
                 sessionStorage.setItem('kycData', JSON.stringify(formData));
 
-                console.log('AML screening result:', result);
+                console.log('Opening Veriff modal with URL:', result.sessionUrl);
 
-                if (result.approved) {
-                    // No sanctions/watchlist matches - approved
-                    console.log('✅ AML screening passed!');
-                    setKycStatus('passed');
+                // Open Veriff SDK modal for identity verification
+                createVeriffFrame({
+                    url: result.sessionUrl,
+                    onEvent: (msg: string) => {
+                        console.log('Veriff event:', msg);
 
-                    // Proceed to billing after 2 seconds
-                    setTimeout(() => {
-                        navigate('/billing');
-                    }, 2000);
-                } else {
-                    // Possible matches found - needs review
-                    console.log('⚠️ AML screening requires review:', result.results);
-                    setKycStatus('failed');
-                    setIsSubmitting(false);
-                }
+                        if (msg === 'FINISHED') {
+                            console.log('✅ Verification completed!');
+                            setKycStatus('passed');
+                            setTimeout(() => {
+                                navigate('/billing');
+                            }, 2000);
+                        } else if (msg === 'CANCELED') {
+                            console.log('❌ Verification canceled');
+                            setKycStatus('failed');
+                            setIsSubmitting(false);
+                        }
+                    }
+                });
             } else {
-                console.error('AML screening failed:', result.error);
+                console.error('Failed to create Veriff session:', result.error);
                 setKycStatus('failed');
                 setIsSubmitting(false);
             }
         } catch (error) {
-            console.error('AML screening failed:', error);
+            console.error('Verification failed:', error);
             setKycStatus('failed');
             setIsSubmitting(false);
         }
@@ -202,7 +207,7 @@ export default function KycPage() {
                         <svg className="w-5 h-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                         </svg>
-                        <p className="text-red-700">AML screening requires manual review. Our team will contact you within 24 hours.</p>
+                        <p className="text-red-700">Verification failed or canceled. Please try again.</p>
                     </div>
                 )}
 
