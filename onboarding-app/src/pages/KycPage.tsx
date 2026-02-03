@@ -102,16 +102,16 @@ export default function KycPage() {
 
             const result = await response.json();
 
-            if (result.success && result.sessionToken) {
+            if (result.success && result.sessionUrl) {
                 // Store data for later
                 sessionStorage.setItem('kycEmail', formData.email);
                 sessionStorage.setItem('kycData', JSON.stringify(formData));
 
-                console.log('Opening Veriff modal with session:', result.sessionToken);
+                console.log('Opening Veriff modal with URL:', result.sessionUrl);
 
                 // Step 2: Open Veriff SDK modal
                 createVeriffFrame({
-                    url: `https://stationapi.veriff.com/v1/sessions/${result.sessionToken}`,
+                    url: result.sessionUrl,
                     onEvent: (msg: string) => {
                         console.log('Veriff event:', msg);
 
