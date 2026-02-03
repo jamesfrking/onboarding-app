@@ -39,10 +39,25 @@ export default async function handler(request) {
         } = body;
 
         // Validate required fields
-        if (!companyLegalName || !executiveName) {
+        if (!companyLegalName || !executiveName || !businessAddress) {
             return new Response(JSON.stringify({
                 success: false,
-                error: 'Company name and executive name are required'
+                error: 'Company name, executive name, and business address are required'
+            }), {
+                status: 400,
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Access-Control-Allow-Origin': '*'
+                }
+            });
+        }
+
+        // Basic address validation (for demo)
+        const fullAddress = `${businessAddress}, ${city}, ${state} ${zipCode}`;
+        if (fullAddress.length < 10) {
+            return new Response(JSON.stringify({
+                success: false,
+                error: 'Invalid business address format'
             }), {
                 status: 400,
                 headers: {
