@@ -342,7 +342,7 @@ export default function KycPage() {
                             >
                                 <option value="US">United States</option>
                                 <option value="CA">Canada</option>
-                                <option value="UK">United Kingdom</option>
+                                <option value="GB">United Kingdom</option>
                                 <option value="AU">Australia</option>
                             </select>
                         </div>

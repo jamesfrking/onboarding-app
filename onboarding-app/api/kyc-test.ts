@@ -13,7 +13,29 @@ function generateSignature(payload: any): string {
         .toLowerCase();
 }
 
+// Map frontend country values to Veriff ISO Alpha-2 codes
+const COUNTRY_MAP: Record<string, string> = {
+    'US': 'US',
+    'USA': 'US',
+    'CA': 'CA',
+    'CAN': 'CA',
+    'UK': 'GB',
+    'GB': 'GB',
+    'GBR': 'GB',
+    'AU': 'AU',
+    'AUS': 'AU'
+};
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
+    // Add CORS headers
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+
+    if (req.method === 'OPTIONS') {
+        return res.status(200).end();
+    }
+
     if (req.method !== 'POST') {
         return res.status(405).json({ error: 'Method not allowed' });
     }
@@ -21,11 +43,24 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     console.log('🔵 KYC API route called');
 
     try {
-        const { email, executiveName, businessAddress, city, state, zipCode, country } = req.body;
+        const body = req.body || {};
+        const { email, executiveName, businessAddress, city, state, zipCode, country } = body;
 
-        // Split executive name
-        const [firstName, ...lastNameParts] = executiveName.trim().split(' ');
-        const lastName = lastNameParts.join(' ');
+        // Validate required fields
+        if (!executiveName || !email) {
+            return res.status(400).json({
+                success: false,
+                error: 'Missing required fields: email and executiveName are required'
+            });
+        }
+
+        // Split executive name safely
+        const nameParts = executiveName.trim().split(' ');
+        const firstName = nameParts[0] || 'Unknown';
+        const lastName = nameParts.slice(1).join(' ') || 'Unknown';
+
+        // Map country to Veriff format (ISO Alpha-2)
+        const veriffCountry = COUNTRY_MAP[country] || 'US';
 
         // Create Veriff session payload
         const payload = {
@@ -36,12 +71,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                     lastName
                 },
                 document: {
-                    country: country || 'USA',
+                    country: veriffCountry,
                     type: 'DRIVERS_LICENSE'
                 },
                 address: {
-                    fullAddress: `${businessAddress}, ${city}, ${state} ${zipCode}`,
-                    supportedCountries: [country || 'USA']
+                    fullAddress: `${businessAddress || ''}, ${city || ''}, ${state || ''} ${zipCode || ''}`.trim(),
+                    supportedCountries: [veriffCountry]
                 },
                 vendorData: email,
                 timestamp: new Date().toISOString()
