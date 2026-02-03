@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { createHmac } from 'crypto';
-import https from 'https';
+import * as https from 'https';
 
 // ⚠️ TESTING ONLY - Never use in production!
 const VERIFF_API_KEY = '31b42483-5a70-4d28-b80c-e7116fd7a7b4';
