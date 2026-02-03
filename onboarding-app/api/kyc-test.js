@@ -1,18 +1,22 @@
-export default function handler(request, response) {
-    response.setHeader('Access-Control-Allow-Origin', '*');
-    response.setHeader('Access-Control-Allow-Methods', 'POST, GET, OPTIONS');
-    response.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+export const config = {
+    runtime: 'edge',
+};
 
-    if (request.method === 'OPTIONS') {
-        return response.status(200).end();
-    }
-
-    console.log('✅ JS Handler called');
-
-    return response.status(200).json({
-        body: request.body,
-        query: request.query,
-        cookies: request.cookies,
-        message: 'Hello from JavaScript!'
-    });
+export default function handler(request) {
+    return new Response(
+        JSON.stringify({
+            message: 'Hello from Edge Runtime!',
+            url: request.url,
+            timestamp: new Date().toISOString()
+        }),
+        {
+            status: 200,
+            headers: {
+                'content-type': 'application/json',
+                'Access-Control-Allow-Origin': '*',
+                'Access-Control-Allow-Methods': 'POST, GET, OPTIONS',
+                'Access-Control-Allow-Headers': 'Content-Type'
+            },
+        }
+    );
 }
