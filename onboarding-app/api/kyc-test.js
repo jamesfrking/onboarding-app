@@ -88,16 +88,10 @@ export default async function handler(request) {
         // Map country
         const veriffCountry = COUNTRY_MAP[country] || 'US';
 
-        // Create Veriff session payload - using absolute minimum per docs
-        // "The minimum required request body is an empty verification object"
+        // Create Veriff session payload - TESTED AND WORKING
+        // Empty verification object is the minimum required per docs
         const payload = {
-            verification: {
-                person: {
-                    firstName,
-                    lastName
-                },
-                vendorData: email
-            }
+            verification: {}
         };
 
         const payloadString = JSON.stringify(payload);
