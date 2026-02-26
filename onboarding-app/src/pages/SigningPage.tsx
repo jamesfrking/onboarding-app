@@ -13,6 +13,9 @@ export default function SigningPage() {
     const [isSigning, setIsSigning] = useState(false);
     const [kycData, setKycData] = useState<KycData | null>(null);
     const [agreedToTerms, setAgreedToTerms] = useState(false);
+    const [signingWindow, setSigningWindow] = useState<Window | null>(null);
+    const [signingComplete, setSigningComplete] = useState(false);
+    const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
     useEffect(() => {
         // Load KYC data from sessionStorage
@@ -23,25 +26,95 @@ export default function SigningPage() {
             // If no KYC data, redirect back to KYC page
             navigate('/kyc');
         }
+
+        // Check if returning from DocuSign
+        const urlParams = new URLSearchParams(window.location.search);
+        const event = urlParams.get('event');
+        if (event === 'signing_complete') {
+            sessionStorage.setItem('documentsSigned', 'true');
+            sessionStorage.setItem('signingCompletedAt', new Date().toISOString());
+            setSigningComplete(true);
+            setIsSigning(false);
+            
+            // Clean up URL without the query parameter
+            window.history.replaceState({}, '', '/signing');
+        }
     }, [navigate]);
 
     const handleSign = async () => {
         if (!agreedToTerms) {
-            alert('Please agree to all documents to continue');
+            setErrorMessage('Please agree to all documents to continue');
             return;
         }
 
         setIsSigning(true);
+        setErrorMessage(null);
 
-        // Simulate document signing delay
-        setTimeout(() => {
-            // Store signing completion in sessionStorage
-            sessionStorage.setItem('documentsSigned', 'true');
-            sessionStorage.setItem('signingCompletedAt', new Date().toISOString());
+        try {
+            // Get partner data from session storage
+            const partnerDataStr = sessionStorage.getItem('partnerData');
+            const partnerData = partnerDataStr ? JSON.parse(partnerDataStr) : null;
 
-            // Navigate to success page
-            navigate('/success');
-        }, 2000);
+            // Prepare return URL (current page with success param)
+            const returnUrl = `${window.location.origin}/signing?event=signing_complete`;
+
+            // Call DocuSign envelope creation API
+            const response = await fetch('http://localhost:4000/api/partner/sign/create-envelope', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    email: kycData?.email,
+                    signerName: kycData?.executiveName,
+                    partnerType: partnerData?.partnerType || 'advisor',
+                    companyName: kycData?.companyLegalName,
+                    returnUrl,
+                }),
+            });
+
+            const result = await response.json();
+
+            if (result.success && result.signingUrl) {
+                // Store envelope ID for tracking
+                sessionStorage.setItem('docusignEnvelopeId', result.envelopeId);
+
+                // Open window with the signing URL directly
+                const newWindow = window.open(result.signingUrl, '_blank');
+
+                if (newWindow) {
+                    setSigningWindow(newWindow);
+
+                    // Monitor if window is closed without completing
+                    const interval = setInterval(() => {
+                        if (newWindow.closed) {
+                            clearInterval(interval);
+                            setIsSigning(false);
+                            setSigningWindow(null);
+                            // Check if signing was completed
+                            const completed = sessionStorage.getItem('documentsSigned');
+                            if (!completed) {
+                                setErrorMessage('Signing window was closed. Please try again if you have not completed signing.');
+                            }
+                        }
+                    }, 100);
+                } else {
+                    // Popup was blocked
+                    setErrorMessage('Please allow popups for this site to open the DocuSign signing window.');
+                    setIsSigning(false);
+                }
+            } else {
+                console.error('Failed to create signing envelope:', result);
+                setErrorMessage(result.message || 'Failed to initialize document signing. Please try again.');
+                setIsSigning(false);
+            }
+        } catch (error) {
+            console.error('Error creating signing envelope:', error);
+            setErrorMessage('An error occurred while setting up document signing. Please try again.');
+            setIsSigning(false);
+        }
+    };
+
+    const handleContinue = () => {
+        navigate('/success');
     };
 
     if (!kycData) {
@@ -55,179 +128,301 @@ export default function SigningPage() {
                 <div className="flex items-center justify-center gap-2 mb-8">
                     <div className="w-8 h-8 rounded-full bg-emerald-600 flex items-center justify-center text-white font-bold text-sm">✓</div>
                     <div className="w-16 h-1 bg-emerald-600"></div>
-                    <div className="w-8 h-8 rounded-full bg-gradient-to-r from-slate-700 to-slate-800 flex items-center justify-center text-white font-bold text-sm">2</div>
-                    <div className="w-16 h-1 bg-slate-200"></div>
-                    <div className="w-8 h-8 rounded-full bg-slate-200 flex items-center justify-center text-slate-500 font-bold text-sm">3</div>
+                    <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white font-bold text-sm ${signingComplete ? 'bg-emerald-600' : 'bg-gradient-to-r from-slate-700 to-slate-800'}`}>
+                        {signingComplete ? '✓' : '2'}
+                    </div>
+                    <div className={`w-16 h-1 ${signingComplete ? 'bg-emerald-600' : 'bg-slate-200'}`}></div>
+                    <div className={`w-8 h-8 rounded-full ${signingComplete ? 'bg-slate-800' : 'bg-slate-200'} flex items-center justify-center ${signingComplete ? 'text-white' : 'text-slate-500'} font-bold text-sm`}>3</div>
                 </div>
 
                 <div className="flex items-center justify-center gap-4 mb-8 text-xs text-slate-500">
                     <span className="text-emerald-600 font-semibold">Verification ✓</span>
                     <span>→</span>
-                    <span className="font-semibold text-slate-700">Document Signing</span>
+                    <span className={`font-semibold ${signingComplete ? 'text-emerald-600' : 'text-slate-700'}`}>
+                        Document Signing {signingComplete && '✓'}
+                    </span>
                     <span>→</span>
-                    <span>Account Setup</span>
+                    <span className={`${signingComplete ? 'text-slate-700 font-semibold ' : ''}`}>Account Setup</span>
                 </div>
 
-                {/* Header */}
-                <div className="text-center mb-8">
-                    <h1 className="text-2xl font-bold text-slate-800 mb-2">Partner Agreement</h1>
-                    <p className="text-slate-500">Review and sign the partnership documents</p>
-                </div>
-
-                {/* Partner Info Card */}
-                <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 mb-6">
-                    <p className="text-sm text-slate-500 mb-2">Signing as</p>
-                    <div className="grid grid-cols-2 gap-2 text-sm">
-                        <div>
-                            <span className="text-slate-400">Company:</span>
-                            <span className="text-slate-700 ml-2 font-medium">{kycData.companyLegalName}</span>
+                {/* Error Message - shown when there's an error */}
+                {errorMessage && !signingComplete ? (
+                    <div className="mb-6 bg-red-50 border border-red-200 rounded-xl p-5 flex items-center gap-4 animate-fadeIn">
+                        <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center flex-shrink-0">
+                            <svg className="w-5 h-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                            </svg>
                         </div>
                         <div>
-                            <span className="text-slate-400">Signatory:</span>
-                            <span className="text-slate-700 ml-2 font-medium">{kycData.executiveName}</span>
+                            <p className="text-sm font-semibold text-red-800">Document signing could not be completed</p>
+                            <p className="text-xs text-red-600 mt-0.5">{errorMessage}</p>
                         </div>
+                        <button
+                            onClick={() => {
+                                setErrorMessage(null);
+                                setIsSigning(false);
+                                setSigningWindow(null);
+                                setAgreedToTerms(false);
+                            }}
+                            className="ml-auto px-4 py-2 text-sm font-medium text-red-700 bg-red-100 hover:bg-red-200 rounded-lg transition-colors"
+                        >
+                            Try Again
+                        </button>
                     </div>
-                </div>
-
-                {/* Documents List */}
-                <div className="space-y-4 mb-6">
-                    <h2 className="text-sm font-semibold text-slate-600 mb-3">BASE DOCUMENTS (Required for all partners)</h2>
-
-                    {/* Document 1: NDA */}
-                    <div className="bg-white border border-slate-200 rounded-xl p-6 hover:border-slate-300 transition-colors">
-                        <div className="flex items-start justify-between">
-                            <div className="flex-1">
-                                <h3 className="font-semibold text-slate-800 mb-1">Mutual Non-Disclosure Agreement (NDA)</h3>
-                                <p className="text-sm text-slate-500 mb-3">Protects confidential information shared between parties</p>
-                                <div className="flex items-center gap-2 text-xs text-slate-400">
-                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                                    </svg>
-                                    <span>8 pages</span>
+                ) : (
+                    <>
+                        {/* Success Message - shown when signing is complete */}
+                        {signingComplete && (
+                            <div className="mb-6 bg-emerald-50 border border-emerald-200 rounded-xl p-5 animate-fadeIn">
+                                <div className="flex items-start gap-4">
+                                    <div className="w-10 h-10 rounded-full bg-emerald-100 flex items-center justify-center flex-shrink-0">
+                                        <svg className="w-6 h-6 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                        </svg>
+                                    </div>
+                                    <div className="flex-1">
+                                        <h3 className="text-sm font-semibold text-emerald-800 mb-1">Documents Signed Successfully!</h3>
+                                        <p className="text-xs text-emerald-700">
+                                            All partnership documents have been signed and submitted. Your agreements are now legally binding.
+                                        </p>
+                                    </div>
                                 </div>
                             </div>
-                            <a href="#" className="text-blue-600 hover:text-blue-700 text-sm font-medium">Preview →</a>
-                        </div>
-                    </div>
+                        )}
 
-                    {/* Document 2: MSA */}
-                    <div className="bg-white border border-slate-200 rounded-xl p-6 hover:border-slate-300 transition-colors">
-                        <div className="flex items-start justify-between">
-                            <div className="flex-1">
-                                <h3 className="font-semibold text-slate-800 mb-1">Master Service Agreement (MSA)</h3>
-                                <p className="text-sm text-slate-500 mb-3">Defines general terms and conditions of partnership</p>
-                                <div className="flex items-center gap-2 text-xs text-slate-400">
-                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                                    </svg>
-                                    <span>12 pages</span>
+                        {/* Header */}
+                        <div className="text-center mb-8">
+                            <h1 className="text-2xl font-bold text-slate-800 mb-2">Partner Agreement</h1>
+                            <p className="text-slate-500">
+                                {signingComplete ? 'Your documents have been signed' : 'Review and sign the partnership documents'}
+                            </p>
+                        </div>
+
+                        {/* Partner Info Card */}
+                        <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 mb-6">
+                            <p className="text-sm text-slate-500 mb-2">Signing as</p>
+                            <div className="grid grid-cols-2 gap-2 text-sm">
+                                <div>
+                                    <span className="text-slate-400">Company:</span>
+                                    <span className="text-slate-700 ml-2 font-medium">{kycData.companyLegalName}</span>
+                                </div>
+                                <div>
+                                    <span className="text-slate-400">Signatory:</span>
+                                    <span className="text-slate-700 ml-2 font-medium">{kycData.executiveName}</span>
                                 </div>
                             </div>
-                            <a href="#" className="text-blue-600 hover:text-blue-700 text-sm font-medium">Preview →</a>
                         </div>
-                    </div>
 
-                    {/* Document 3: AUP */}
-                    <div className="bg-white border border-slate-200 rounded-xl p-6 hover:border-slate-300 transition-colors">
-                        <div className="flex items-start justify-between">
-                            <div className="flex-1">
-                                <h3 className="font-semibold text-slate-800 mb-1">Acceptable Use Policy (AUP)</h3>
-                                <p className="text-sm text-slate-500 mb-3">Guidelines for acceptable use of WanAware services</p>
-                                <div className="flex items-center gap-2 text-xs text-slate-400">
-                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                                    </svg>
-                                    <span>5 pages</span>
+                        {/* Documents List */}
+                        <div className="space-y-4 mb-6">
+                            <h2 className="text-sm font-semibold text-slate-600 mb-3">BASE DOCUMENTS (Required for all partners)</h2>
+
+                            {/* Document 1: NDA */}
+                            <div className={`bg-white border rounded-xl p-6 transition-colors ${signingComplete ? 'border-slate-300' : 'border-slate-200 hover:border-slate-300'}`}>
+                                <div className="flex items-start justify-between">
+                                    <div className="flex-1">
+                                        <div className="flex items-center gap-2">
+                                            <h3 className="font-semibold text-slate-800 mb-1">Mutual Non-Disclosure Agreement (NDA)</h3>
+                                            {signingComplete && (
+                                                <svg className="w-4 h-4 text-slate-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                                </svg>
+                                            )}
+                                        </div>
+                                        <p className="text-sm text-slate-500 mb-3">Protects confidential information shared between parties</p>
+                                        <div className="flex items-center gap-2 text-xs text-slate-400">
+                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                            </svg>
+                                            <span>8 pages</span>
+                                        </div>
+                                    </div>
+                                    <a href="#" className="text-blue-600 hover:text-blue-700 text-sm font-medium">Preview →</a>
                                 </div>
                             </div>
-                            <a href="#" className="text-blue-600 hover:text-blue-700 text-sm font-medium">Preview →</a>
-                        </div>
-                    </div>
 
-                    {/* Document 4: DPA */}
-                    <div className="bg-white border border-slate-200 rounded-xl p-6 hover:border-slate-300 transition-colors">
-                        <div className="flex items-start justify-between">
-                            <div className="flex-1">
-                                <h3 className="font-semibold text-slate-800 mb-1">Data Processing Agreement (DPA)</h3>
-                                <p className="text-sm text-slate-500 mb-3">GDPR/privacy compliance for data handling</p>
-                                <div className="flex items-center gap-2 text-xs text-slate-400">
-                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                                    </svg>
-                                    <span>10 pages</span>
+                            {/* Document 2: MSA */}
+                            <div className={`bg-white border rounded-xl p-6 transition-colors ${signingComplete ? 'border-slate-300' : 'border-slate-200 hover:border-slate-300'}`}>
+                                <div className="flex items-start justify-between">
+                                    <div className="flex-1">
+                                        <div className="flex items-center gap-2">
+                                            <h3 className="font-semibold text-slate-800 mb-1">Master Service Agreement (MSA)</h3>
+                                            {signingComplete && (
+                                                <svg className="w-4 h-4 text-slate-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                                </svg>
+                                            )}
+                                        </div>
+                                        <p className="text-sm text-slate-500 mb-3">Defines general terms and conditions of partnership</p>
+                                        <div className="flex items-center gap-2 text-xs text-slate-400">
+                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                            </svg>
+                                            <span>12 pages</span>
+                                        </div>
+                                    </div>
+                                    <a href="#" className="text-blue-600 hover:text-blue-700 text-sm font-medium">Preview →</a>
                                 </div>
                             </div>
-                            <a href="#" className="text-blue-600 hover:text-blue-700 text-sm font-medium">Preview →</a>
+
+                            {/* Document 3: AUP */}
+                            <div className={`bg-white border rounded-xl p-6 transition-colors ${signingComplete ? 'border-slate-300' : 'border-slate-200 hover:border-slate-300'}`}>
+                                <div className="flex items-start justify-between">
+                                    <div className="flex-1">
+                                        <div className="flex items-center gap-2">
+                                            <h3 className="font-semibold text-slate-800 mb-1">Acceptable Use Policy (AUP)</h3>
+                                            {signingComplete && (
+                                                <svg className="w-4 h-4 text-slate-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                                </svg>
+                                            )}
+                                        </div>
+                                        <p className="text-sm text-slate-500 mb-3">Guidelines for acceptable use of WanAware services</p>
+                                        <div className="flex items-center gap-2 text-xs text-slate-400">
+                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                            </svg>
+                                            <span>5 pages</span>
+                                        </div>
+                                    </div>
+                                    <a href="#" className="text-blue-600 hover:text-blue-700 text-sm font-medium">Preview →</a>
+                                </div>
+                            </div>
+
+                            {/* Document 4: DPA */}
+                            <div className={`bg-white border rounded-xl p-6 transition-colors ${signingComplete ? 'border-slate-300' : 'border-slate-200 hover:border-slate-300'}`}>
+                                <div className="flex items-start justify-between">
+                                    <div className="flex-1">
+                                        <div className="flex items-center gap-2">
+                                            <h3 className="font-semibold text-slate-800 mb-1">Data Processing Agreement (DPA)</h3>
+                                            {signingComplete && (
+                                                <svg className="w-4 h-4 text-slate-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                                </svg>
+                                            )}
+                                        </div>
+                                        <p className="text-sm text-slate-500 mb-3">GDPR/privacy compliance for data handling</p>
+                                        <div className="flex items-center gap-2 text-xs text-slate-400">
+                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                            </svg>
+                                            <span>10 pages</span>
+                                        </div>
+                                    </div>
+                                    <a href="#" className="text-blue-600 hover:text-blue-700 text-sm font-medium">Preview →</a>
+                                </div>
+                            </div>
+
+                            <h2 className="text-sm font-semibold text-slate-600 mt-6 mb-3">PARTNER-SPECIFIC ADDENDUM</h2>
+
+                            {/* Partner Addendum - varies by type */}
+                            <div className={`border rounded-xl p-6 transition-colors ${signingComplete ? 'bg-blue-50 border-blue-200' : 'bg-blue-50 border-blue-200 hover:border-blue-300'}`}>
+                                <div className="flex items-start justify-between">
+                                    <div className="flex-1">
+                                        <div className="flex items-center gap-2 mb-1">
+                                            <h3 className="font-semibold text-slate-800">
+                                                {kycData.partnerType === 'msp' && 'Managed Service Provider (MSP) Addendum'}
+                                                {kycData.partnerType === 'distributor' && 'Distributor Addendum'}
+                                                {kycData.partnerType === 'advisor' && 'Technology Advisor Addendum'}
+                                                {kycData.partnerType === 'si' && 'System Integrator Addendum'}
+                                                {!kycData.partnerType && 'Partner Addendum'}
+                                            </h3>
+                                            {signingComplete && (
+                                                <svg className="w-4 h-4 text-slate-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                                </svg>
+                                            )}
+                                            <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-medium">
+                                                {kycData.partnerType?.toUpperCase() || 'PARTNER'}
+                                            </span>
+                                        </div>
+                                        <p className="text-sm text-slate-600 mb-3">Partner-specific terms, commission structure, and obligations</p>
+                                        <div className="flex items-center gap-2 text-xs text-slate-400">
+                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                            </svg>
+                                            <span>6 pages</span>
+                                        </div>
+                                    </div>
+                                    <a href="#" className="text-blue-600 hover:text-blue-700 text-sm font-medium">Preview →</a>
+                                </div>
+                            </div>
                         </div>
-                    </div>
 
-                    <h2 className="text-sm font-semibold text-slate-600 mt-6 mb-3">PARTNER-SPECIFIC ADDENDUM</h2>
-
-                    {/* Partner Addendum - varies by type */}
-                    <div className="bg-blue-50 border border-blue-200 rounded-xl p-6 hover:border-blue-300 transition-colors">
-                        <div className="flex items-start justify-between">
-                            <div className="flex-1">
-                                <div className="flex items-center gap-2 mb-1">
-                                    <h3 className="font-semibold text-slate-800">
-                                        {kycData.partnerType === 'msp' && 'Managed Service Provider (MSP) Addendum'}
-                                        {kycData.partnerType === 'distributor' && 'Distributor Addendum'}
-                                        {kycData.partnerType === 'advisor' && 'Technology Advisor Addendum'}
-                                        {kycData.partnerType === 'si' && 'System Integrator Addendum'}
-                                        {!kycData.partnerType && 'Partner Addendum'}
-                                    </h3>
-                                    <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-medium">
-                                        {kycData.partnerType?.toUpperCase() || 'PARTNER'}
+                        {/* Agreement Checkbox - hide when signed */}
+                        {!signingComplete && (
+                            <div className="bg-white border border-slate-200 rounded-xl p-6 mb-6">
+                                <label className="flex items-start gap-3 cursor-pointer">
+                                    <input
+                                        type="checkbox"
+                                        checked={agreedToTerms}
+                                        onChange={(e) => {
+                                            setAgreedToTerms(e.target.checked);
+                                            if (e.target.checked) setErrorMessage(null);
+                                        }}
+                                        className="mt-1 w-5 h-5 rounded border-slate-300 text-slate-800 focus:ring-slate-400"
+                                    />
+                                    <span className="text-sm text-slate-700">
+                                        I have reviewed and agree to all 5 documents listed above on behalf of <strong>{kycData.companyLegalName}</strong>. I confirm that I have the authority to execute these agreements.
                                     </span>
-                                </div>
-                                <p className="text-sm text-slate-600 mb-3">Partner-specific terms, commission structure, and obligations</p>
-                                <div className="flex items-center gap-2 text-xs text-slate-400">
-                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                                    </svg>
-                                    <span>6 pages</span>
-                                </div>
+                                </label>
                             </div>
-                            <a href="#" className="text-blue-600 hover:text-blue-700 text-sm font-medium">Preview →</a>
-                        </div>
-                    </div>
-                </div>
+                        )}
 
-                {/* Agreement Checkbox */}
-                <div className="bg-white border border-slate-200 rounded-xl p-6 mb-6">
-                    <label className="flex items-start gap-3 cursor-pointer">
-                        <input
-                            type="checkbox"
-                            checked={agreedToTerms}
-                            onChange={(e) => setAgreedToTerms(e.target.checked)}
-                            className="mt-1 w-5 h-5 rounded border-slate-300 text-slate-800 focus:ring-slate-400"
-                        />
-                        <span className="text-sm text-slate-700">
-                            I have reviewed and agree to all 5 documents listed above on behalf of <strong>{kycData.companyLegalName}</strong>. I confirm that I have the authority to execute these agreements.
-                        </span>
-                    </label>
-                </div>
+                        {/* Action Button */}
+                        <button
+                            onClick={signingComplete ? handleContinue : handleSign}
+                            disabled={!signingComplete && (!agreedToTerms || isSigning)}
+                            className="w-full py-3.5 px-6 bg-gradient-to-r from-slate-800 to-slate-900 text-white font-semibold rounded-xl hover:from-slate-700 hover:to-slate-800 hover:shadow-xl transition-all duration-300 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                            <span className="flex items-center justify-center gap-2">
+                                {signingComplete ? (
+                                    <>
+                                        Continue to Account Setup
+                                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                                        </svg>
+                                    </>
+                                ) : isSigning ? (
+                                    <>
+                                        <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                                        Opening DocuSign...
+                                    </>
+                                ) : (
+                                    'Sign Documents with DocuSign →'
+                                )}
+                            </span>
+                        </button>
 
-                {/* Sign Button */}
-                <button
-                    onClick={handleSign}
-                    disabled={!agreedToTerms || isSigning}
-                    className="w-full py-3.5 px-6 bg-gradient-to-r from-slate-800 to-slate-900 text-white font-semibold rounded-xl hover:from-slate-700 hover:to-slate-800 hover:shadow-xl transition-all duration-300 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                    {isSigning ? (
-                        <span className="flex items-center justify-center gap-2">
-                            <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                            Signing Documents...
-                        </span>
-                    ) : (
-                        'Sign & Complete Setup →'
-                    )}
-                </button>
+                        {/* Signing status message */}
+                        {isSigning && signingWindow && (
+                            <div className="mt-4 bg-blue-50 border border-blue-200 rounded-lg p-4 text-center">
+                                <p className="text-sm text-blue-800 font-medium">
+                                    📝 Please complete signing in the opened DocuSign window
+                                </p>
+                                <p className="text-xs text-blue-600 mt-1">
+                                    You will be redirected automatically after signing
+                                </p>
+                            </div>
+                        )}
 
-                {/* Security Notice */}
-                <p className="text-xs text-slate-400 text-center mt-4">
-                    🔒 Your signature is legally binding and encrypted
-                </p>
+                        {/* Security Notice */}
+                        <p className="text-xs text-slate-400 text-center mt-4">
+                            🔒 {signingComplete ? 'Documents secured by DocuSign' : 'Your signature is legally binding and encrypted'}
+                        </p>
+                    </>
+                )}
             </div>
+
+            <style>{`
+                @keyframes fadeIn {
+                    from { opacity: 0; transform: translateY(-10px); }
+                    to { opacity: 1; transform: translateY(0); }
+                }
+                .animate-fadeIn {
+                    animation: fadeIn 0.5s ease-out forwards;
+                }
+            `}</style>
         </div>
     );
 }

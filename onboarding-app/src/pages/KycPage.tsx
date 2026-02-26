@@ -96,6 +96,7 @@ export default function KycPage() {
                     targetSize: 'SMB',
                     regions: 'North America',
                 };
+                sessionStorage.setItem('partnerData', JSON.stringify(demoPartner));
                 setPartnerData(demoPartner);
                 setFormData(prev => ({
                     ...prev,
@@ -113,19 +114,21 @@ export default function KycPage() {
     };
 
     const accessTokenExpirationHandler = useCallback(async () => {
-        const response = await fetch('/api/kyc-sumsub', {
+        const response = await fetch('http://localhost:4000/api/partner/kyc/create-session', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(formData),
         });
         const result = await response.json();
-        if (result.success && result.token) {
+        console.log("==========",result)
+        if (result.success || result.token) {
             return result.token;
         }
         throw new Error('Failed to refresh access token');
     }, [formData]);
 
     const handleSumsubMessage = useCallback((type: string, payload: any) => {
+
         console.log('Sumsub message:', type, payload);
 
         if (type === 'idCheck.onApplicantSubmitted') {
@@ -147,16 +150,26 @@ export default function KycPage() {
         setIsSubmitting(true);
         setKycStatus('verifying');
 
+        // Split executive name
+        const nameParts = formData.executiveName.trim().split(' ');
+        const firstName = nameParts[0] || 'Unknown';
+        const lastName = nameParts.slice(1).join(' ') || 'Unknown';
+
+
         try {
-            const response = await fetch('/api/kyc-sumsub', {
+            const response = await fetch('http://localhost:4000/api/partner/kyc/create-session', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(formData),
+                body: JSON.stringify({
+                    ...formData,
+                    firstName,
+                    lastName,
+                }),
             });
 
             const result = await response.json();
 
-            if (result.success && result.token) {
+            if (result.success || result.token) {
                 sessionStorage.setItem('kycEmail', formData.email);
                 sessionStorage.setItem('kycData', JSON.stringify(formData));
                 setAccessToken(result.token);
