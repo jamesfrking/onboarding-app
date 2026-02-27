@@ -1,21 +1,87 @@
 import { useNavigate } from 'react-router-dom';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, useCallback, memo } from 'react';
 
 interface KycData {
     email: string;
     companyLegalName: string;
     executiveName: string;
-    [key: string]: string;
+    partnerType?: string;
 }
+
+// Memoized sub-components
+const ProgressStep = memo(({ completed, active, number }: { completed?: boolean; active?: boolean; number?: number }) => (
+    <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white font-bold text-sm ${
+        completed ? 'bg-emerald-600' : active ? 'bg-slate-800' : number ? 'bg-gradient-to-r from-slate-700 to-slate-800' : 'bg-slate-200 text-slate-500'
+    }`}>
+        {completed ? '✓' : number || '3'}
+    </div>
+));
+
+const DocumentIcon = memo(() => (
+    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+    </svg>
+));
+
+const CheckIcon = memo(() => (
+    <svg className="w-4 h-4 text-slate-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+    </svg>
+));
+
+const DocumentCard = memo(({ title, description, pages, signingComplete }: {
+    title: string;
+    description: string;
+    pages: number;
+    signingComplete: boolean;
+}) => (
+    <div className={`bg-white border rounded-xl p-6 transition-colors ${signingComplete ? 'border-slate-300' : 'border-slate-200 hover:border-slate-300'}`}>
+        <div className="flex items-start justify-between">
+            <div className="flex-1">
+                <div className="flex items-center gap-2">
+                    <h3 className="font-semibold text-slate-800 mb-1">{title}</h3>
+                    {signingComplete && <CheckIcon />}
+                </div>
+                <p className="text-sm text-slate-500 mb-3">{description}</p>
+                <div className="flex items-center gap-2 text-xs text-slate-400">
+                    <DocumentIcon />
+                    <span>{pages} pages</span>
+                </div>
+            </div>
+            <a href="#" className="text-blue-600 hover:text-blue-700 text-sm font-medium">Preview →</a>
+        </div>
+    </div>
+));
 
 export default function SigningPage() {
     const navigate = useNavigate();
     const [isSigning, setIsSigning] = useState(false);
     const [kycData, setKycData] = useState<KycData | null>(null);
     const [agreedToTerms, setAgreedToTerms] = useState(false);
-    const [signingWindow, setSigningWindow] = useState<Window | null>(null);
     const [signingComplete, setSigningComplete] = useState(false);
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
+    const [isCheckingStatus, setIsCheckingStatus] = useState(false);
+
+    // Check envelope status from DocuSign
+    const checkEnvelopeStatus = useCallback(async () => {
+        try {
+            setIsCheckingStatus(true)
+            const envelopeId = sessionStorage.getItem('docusignEnvelopeId');
+            if (!envelopeId) return null;
+
+            const response = await fetch(`http://localhost:4000/api/partner/sign/status?envelopeId=${envelopeId}`);
+            const result = await response.json();
+
+            if (result.status === 'completed') {
+                // Convert signedAt to ISO date format
+                setSigningComplete(true);
+                setIsSigning(false);
+            }
+            setIsCheckingStatus(false);
+        } catch (error) {
+            setIsCheckingStatus(false);
+        }
+    }, []);
 
     useEffect(() => {
         // Load KYC data from sessionStorage
@@ -25,23 +91,21 @@ export default function SigningPage() {
         } else {
             // If no KYC data, redirect back to KYC page
             navigate('/kyc');
+            return;
         }
 
-        // Check if returning from DocuSign
+        
         const urlParams = new URLSearchParams(window.location.search);
         const event = urlParams.get('event');
         if (event === 'signing_complete') {
-            sessionStorage.setItem('documentsSigned', 'true');
-            sessionStorage.setItem('signingCompletedAt', new Date().toISOString());
-            setSigningComplete(true);
-            setIsSigning(false);
+            checkEnvelopeStatus();
             
             // Clean up URL without the query parameter
             window.history.replaceState({}, '', '/signing');
         }
     }, [navigate]);
 
-    const handleSign = async () => {
+    const handleSign = useCallback(async () => {
         if (!agreedToTerms) {
             setErrorMessage('Please agree to all documents to continue');
             return;
@@ -54,10 +118,7 @@ export default function SigningPage() {
             // Get partner data from session storage
             const partnerDataStr = sessionStorage.getItem('partnerData');
             const partnerData = partnerDataStr ? JSON.parse(partnerDataStr) : null;
-
-            // Prepare return URL (current page with success param)
-            const returnUrl = `${window.location.origin}/signing?event=signing_complete`;
-
+            
             // Call DocuSign envelope creation API
             const response = await fetch('http://localhost:4000/api/partner/sign/create-envelope', {
                 method: 'POST',
@@ -67,7 +128,7 @@ export default function SigningPage() {
                     signerName: kycData?.executiveName,
                     partnerType: partnerData?.partnerType || 'advisor',
                     companyName: kycData?.companyLegalName,
-                    returnUrl,
+                    returnUrl: `${window.location.origin}/signing?event=signing_complete`,
                 }),
             });
 
@@ -77,48 +138,84 @@ export default function SigningPage() {
                 // Store envelope ID for tracking
                 sessionStorage.setItem('docusignEnvelopeId', result.envelopeId);
 
-                // Open window with the signing URL directly
-                const newWindow = window.open(result.signingUrl, '_blank');
-
-                if (newWindow) {
-                    setSigningWindow(newWindow);
-
-                    // Monitor if window is closed without completing
-                    const interval = setInterval(() => {
-                        if (newWindow.closed) {
-                            clearInterval(interval);
-                            setIsSigning(false);
-                            setSigningWindow(null);
-                            // Check if signing was completed
-                            const completed = sessionStorage.getItem('documentsSigned');
-                            if (!completed) {
-                                setErrorMessage('Signing window was closed. Please try again if you have not completed signing.');
-                            }
-                        }
-                    }, 100);
-                } else {
-                    // Popup was blocked
-                    setErrorMessage('Please allow popups for this site to open the DocuSign signing window.');
-                    setIsSigning(false);
-                }
+                // Navigate to signing URL in current window
+                window.location.href = result.signingUrl;
             } else {
-                console.error('Failed to create signing envelope:', result);
                 setErrorMessage(result.message || 'Failed to initialize document signing. Please try again.');
                 setIsSigning(false);
             }
         } catch (error) {
-            console.error('Error creating signing envelope:', error);
             setErrorMessage('An error occurred while setting up document signing. Please try again.');
             setIsSigning(false);
         }
-    };
+    }, [agreedToTerms, kycData, checkEnvelopeStatus]);
 
-    const handleContinue = () => {
-        navigate('/success');
-    };
+    const handleTryAgain = useCallback(() => {
+        setErrorMessage(null);
+        setIsSigning(false);
+        setAgreedToTerms(false);
+    }, []);
 
-    if (!kycData) {
-        return null; // Loading or redirecting
+    const handleContinue = useCallback(() => navigate('/success'), [navigate]);
+
+    const handleCheckboxChange = useCallback((checked: boolean) => {
+        setAgreedToTerms(checked);
+        if (checked) setErrorMessage(null);
+    }, []);
+
+    // Memoized values
+    const partnerAddendumTitle = useMemo(() => {
+        const titles: Record<string, string> = {
+            msp: 'Managed Service Provider (MSP) Addendum',
+            distributor: 'Distributor Addendum',
+            advisor: 'Technology Advisor Addendum',
+            si: 'System Integrator Addendum',
+        };
+        return titles[kycData?.partnerType || ''] || 'Partner Addendum';
+    }, [kycData?.partnerType]);
+
+    const documents = useMemo(() => [
+        { title: 'Mutual Non-Disclosure Agreement (NDA)', description: 'Protects confidential information shared between parties', pages: 8 },
+        { title: 'Master Service Agreement (MSA)', description: 'Defines general terms and conditions of partnership', pages: 12 },
+        { title: 'Acceptable Use Policy (AUP)', description: 'Guidelines for acceptable use of WanAware services', pages: 5 },
+        { title: 'Data Processing Agreement (DPA)', description: 'GDPR/privacy compliance for data handling', pages: 10 },
+    ], []);
+
+    const buttonContent = useMemo(() => {
+        if (signingComplete) {
+            return (
+                <>
+                    Continue to Account Setup
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                    </svg>
+                </>
+            );
+        }
+        if (isSigning) {
+            return (
+                <>
+                    <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    Opening DocuSign...
+                </>
+            );
+        }
+        return 'Sign Documents with DocuSign →';
+    }, [signingComplete, isSigning]);
+
+    if (!kycData) return null;
+
+    // Show loading while checking status
+    if (isCheckingStatus) {
+        return (
+            <div className="min-h-screen flex items-center justify-center" style={{ background: 'linear-gradient(180deg, #f1f5f9 0%, #e2e8f0 100%)' }}>
+                <div className="text-center">
+                    <div className="w-16 h-16 border-4 border-slate-300 border-t-slate-800 rounded-full animate-spin mx-auto mb-4"></div>
+                    <p className="text-slate-600 font-medium">Verifying document status...</p>
+                    <p className="text-xs text-slate-400 mt-2">Please wait</p>
+                </div>
+            </div>
+        );
     }
 
     return (
@@ -126,13 +223,11 @@ export default function SigningPage() {
             <div className="max-w-3xl mx-auto">
                 {/* Progress Indicator */}
                 <div className="flex items-center justify-center gap-2 mb-8">
-                    <div className="w-8 h-8 rounded-full bg-emerald-600 flex items-center justify-center text-white font-bold text-sm">✓</div>
+                    <ProgressStep completed />
                     <div className="w-16 h-1 bg-emerald-600"></div>
-                    <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white font-bold text-sm ${signingComplete ? 'bg-emerald-600' : 'bg-gradient-to-r from-slate-700 to-slate-800'}`}>
-                        {signingComplete ? '✓' : '2'}
-                    </div>
+                    <ProgressStep number={2} completed={signingComplete} />
                     <div className={`w-16 h-1 ${signingComplete ? 'bg-emerald-600' : 'bg-slate-200'}`}></div>
-                    <div className={`w-8 h-8 rounded-full ${signingComplete ? 'bg-slate-800' : 'bg-slate-200'} flex items-center justify-center ${signingComplete ? 'text-white' : 'text-slate-500'} font-bold text-sm`}>3</div>
+                    <ProgressStep active={signingComplete} />
                 </div>
 
                 <div className="flex items-center justify-center gap-4 mb-8 text-xs text-slate-500">
@@ -142,7 +237,7 @@ export default function SigningPage() {
                         Document Signing {signingComplete && '✓'}
                     </span>
                     <span>→</span>
-                    <span className={`${signingComplete ? 'text-slate-700 font-semibold ' : ''}`}>Account Setup</span>
+                    <span className={signingComplete ? 'text-slate-700 font-semibold' : ''}>Account Setup</span>
                 </div>
 
                 {/* Error Message - shown when there's an error */}
@@ -157,15 +252,7 @@ export default function SigningPage() {
                             <p className="text-sm font-semibold text-red-800">Document signing could not be completed</p>
                             <p className="text-xs text-red-600 mt-0.5">{errorMessage}</p>
                         </div>
-                        <button
-                            onClick={() => {
-                                setErrorMessage(null);
-                                setIsSigning(false);
-                                setSigningWindow(null);
-                                setAgreedToTerms(false);
-                            }}
-                            className="ml-auto px-4 py-2 text-sm font-medium text-red-700 bg-red-100 hover:bg-red-200 rounded-lg transition-colors"
-                        >
+                        <button onClick={handleTryAgain} className="ml-auto px-4 py-2 text-sm font-medium text-red-700 bg-red-100 hover:bg-red-200 rounded-lg transition-colors">
                             Try Again
                         </button>
                     </div>
@@ -216,102 +303,9 @@ export default function SigningPage() {
                         {/* Documents List */}
                         <div className="space-y-4 mb-6">
                             <h2 className="text-sm font-semibold text-slate-600 mb-3">BASE DOCUMENTS (Required for all partners)</h2>
-
-                            {/* Document 1: NDA */}
-                            <div className={`bg-white border rounded-xl p-6 transition-colors ${signingComplete ? 'border-slate-300' : 'border-slate-200 hover:border-slate-300'}`}>
-                                <div className="flex items-start justify-between">
-                                    <div className="flex-1">
-                                        <div className="flex items-center gap-2">
-                                            <h3 className="font-semibold text-slate-800 mb-1">Mutual Non-Disclosure Agreement (NDA)</h3>
-                                            {signingComplete && (
-                                                <svg className="w-4 h-4 text-slate-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                                                </svg>
-                                            )}
-                                        </div>
-                                        <p className="text-sm text-slate-500 mb-3">Protects confidential information shared between parties</p>
-                                        <div className="flex items-center gap-2 text-xs text-slate-400">
-                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                                            </svg>
-                                            <span>8 pages</span>
-                                        </div>
-                                    </div>
-                                    <a href="#" className="text-blue-600 hover:text-blue-700 text-sm font-medium">Preview →</a>
-                                </div>
-                            </div>
-
-                            {/* Document 2: MSA */}
-                            <div className={`bg-white border rounded-xl p-6 transition-colors ${signingComplete ? 'border-slate-300' : 'border-slate-200 hover:border-slate-300'}`}>
-                                <div className="flex items-start justify-between">
-                                    <div className="flex-1">
-                                        <div className="flex items-center gap-2">
-                                            <h3 className="font-semibold text-slate-800 mb-1">Master Service Agreement (MSA)</h3>
-                                            {signingComplete && (
-                                                <svg className="w-4 h-4 text-slate-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                                                </svg>
-                                            )}
-                                        </div>
-                                        <p className="text-sm text-slate-500 mb-3">Defines general terms and conditions of partnership</p>
-                                        <div className="flex items-center gap-2 text-xs text-slate-400">
-                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                                            </svg>
-                                            <span>12 pages</span>
-                                        </div>
-                                    </div>
-                                    <a href="#" className="text-blue-600 hover:text-blue-700 text-sm font-medium">Preview →</a>
-                                </div>
-                            </div>
-
-                            {/* Document 3: AUP */}
-                            <div className={`bg-white border rounded-xl p-6 transition-colors ${signingComplete ? 'border-slate-300' : 'border-slate-200 hover:border-slate-300'}`}>
-                                <div className="flex items-start justify-between">
-                                    <div className="flex-1">
-                                        <div className="flex items-center gap-2">
-                                            <h3 className="font-semibold text-slate-800 mb-1">Acceptable Use Policy (AUP)</h3>
-                                            {signingComplete && (
-                                                <svg className="w-4 h-4 text-slate-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                                                </svg>
-                                            )}
-                                        </div>
-                                        <p className="text-sm text-slate-500 mb-3">Guidelines for acceptable use of WanAware services</p>
-                                        <div className="flex items-center gap-2 text-xs text-slate-400">
-                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                                            </svg>
-                                            <span>5 pages</span>
-                                        </div>
-                                    </div>
-                                    <a href="#" className="text-blue-600 hover:text-blue-700 text-sm font-medium">Preview →</a>
-                                </div>
-                            </div>
-
-                            {/* Document 4: DPA */}
-                            <div className={`bg-white border rounded-xl p-6 transition-colors ${signingComplete ? 'border-slate-300' : 'border-slate-200 hover:border-slate-300'}`}>
-                                <div className="flex items-start justify-between">
-                                    <div className="flex-1">
-                                        <div className="flex items-center gap-2">
-                                            <h3 className="font-semibold text-slate-800 mb-1">Data Processing Agreement (DPA)</h3>
-                                            {signingComplete && (
-                                                <svg className="w-4 h-4 text-slate-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                                                </svg>
-                                            )}
-                                        </div>
-                                        <p className="text-sm text-slate-500 mb-3">GDPR/privacy compliance for data handling</p>
-                                        <div className="flex items-center gap-2 text-xs text-slate-400">
-                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                                            </svg>
-                                            <span>10 pages</span>
-                                        </div>
-                                    </div>
-                                    <a href="#" className="text-blue-600 hover:text-blue-700 text-sm font-medium">Preview →</a>
-                                </div>
-                            </div>
+                            {documents.map((doc) => (
+                                <DocumentCard key={doc.title} {...doc} signingComplete={signingComplete} />
+                            ))}
 
                             <h2 className="text-sm font-semibold text-slate-600 mt-6 mb-3">PARTNER-SPECIFIC ADDENDUM</h2>
 
@@ -320,27 +314,15 @@ export default function SigningPage() {
                                 <div className="flex items-start justify-between">
                                     <div className="flex-1">
                                         <div className="flex items-center gap-2 mb-1">
-                                            <h3 className="font-semibold text-slate-800">
-                                                {kycData.partnerType === 'msp' && 'Managed Service Provider (MSP) Addendum'}
-                                                {kycData.partnerType === 'distributor' && 'Distributor Addendum'}
-                                                {kycData.partnerType === 'advisor' && 'Technology Advisor Addendum'}
-                                                {kycData.partnerType === 'si' && 'System Integrator Addendum'}
-                                                {!kycData.partnerType && 'Partner Addendum'}
-                                            </h3>
-                                            {signingComplete && (
-                                                <svg className="w-4 h-4 text-slate-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                                                </svg>
-                                            )}
+                                            <h3 className="font-semibold text-slate-800">{partnerAddendumTitle}</h3>
+                                            {signingComplete && <CheckIcon />}
                                             <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-medium">
                                                 {kycData.partnerType?.toUpperCase() || 'PARTNER'}
                                             </span>
                                         </div>
                                         <p className="text-sm text-slate-600 mb-3">Partner-specific terms, commission structure, and obligations</p>
                                         <div className="flex items-center gap-2 text-xs text-slate-400">
-                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                                            </svg>
+                                            <DocumentIcon />
                                             <span>6 pages</span>
                                         </div>
                                     </div>
@@ -356,10 +338,7 @@ export default function SigningPage() {
                                     <input
                                         type="checkbox"
                                         checked={agreedToTerms}
-                                        onChange={(e) => {
-                                            setAgreedToTerms(e.target.checked);
-                                            if (e.target.checked) setErrorMessage(null);
-                                        }}
+                                        onChange={(e) => handleCheckboxChange(e.target.checked)}
                                         className="mt-1 w-5 h-5 rounded border-slate-300 text-slate-800 focus:ring-slate-400"
                                     />
                                     <span className="text-sm text-slate-700">
@@ -375,36 +354,8 @@ export default function SigningPage() {
                             disabled={!signingComplete && (!agreedToTerms || isSigning)}
                             className="w-full py-3.5 px-6 bg-gradient-to-r from-slate-800 to-slate-900 text-white font-semibold rounded-xl hover:from-slate-700 hover:to-slate-800 hover:shadow-xl transition-all duration-300 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
                         >
-                            <span className="flex items-center justify-center gap-2">
-                                {signingComplete ? (
-                                    <>
-                                        Continue to Account Setup
-                                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
-                                        </svg>
-                                    </>
-                                ) : isSigning ? (
-                                    <>
-                                        <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                                        Opening DocuSign...
-                                    </>
-                                ) : (
-                                    'Sign Documents with DocuSign →'
-                                )}
-                            </span>
+                            <span className="flex items-center justify-center gap-2">{buttonContent}</span>
                         </button>
-
-                        {/* Signing status message */}
-                        {isSigning && signingWindow && (
-                            <div className="mt-4 bg-blue-50 border border-blue-200 rounded-lg p-4 text-center">
-                                <p className="text-sm text-blue-800 font-medium">
-                                    📝 Please complete signing in the opened DocuSign window
-                                </p>
-                                <p className="text-xs text-blue-600 mt-1">
-                                    You will be redirected automatically after signing
-                                </p>
-                            </div>
-                        )}
 
                         {/* Security Notice */}
                         <p className="text-xs text-slate-400 text-center mt-4">
@@ -426,3 +377,4 @@ export default function SigningPage() {
         </div>
     );
 }
+
