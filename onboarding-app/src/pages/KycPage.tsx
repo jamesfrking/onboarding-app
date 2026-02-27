@@ -120,7 +120,7 @@ export default function KycPage() {
             body: JSON.stringify(formData),
         });
         const result = await response.json();
-        console.log("==========",result)
+        
         if (result.success || result.token) {
             return result.token;
         }
@@ -128,8 +128,9 @@ export default function KycPage() {
     }, [formData]);
 
     const handleSumsubMessage = useCallback((type: string, payload: any) => {
-
-        console.log('Sumsub message:', type, payload);
+        if(type === 'idCheck.onApplicantLoaded'){
+            sessionStorage.setItem('applicantId', payload.applicantId);
+        }
 
         if (type === 'idCheck.onApplicantSubmitted') {
             setKycStatus('passed');
@@ -140,7 +141,6 @@ export default function KycPage() {
     }, [navigate]);
 
     const handleSumsubError = useCallback((error: any) => {
-        console.error('Sumsub error:', error);
         setKycStatus('failed');
         setIsSubmitting(false);
     }, []);
@@ -172,15 +172,14 @@ export default function KycPage() {
             if (result.success || result.token) {
                 sessionStorage.setItem('kycEmail', formData.email);
                 sessionStorage.setItem('kycData', JSON.stringify(formData));
+               sessionStorage.setItem('accessToken', JSON.stringify(result.token));
                 setAccessToken(result.token);
                 setKycStatus('pending');
             } else {
-                console.error('Failed to get Sumsub access token:', result.error);
                 setKycStatus('failed');
                 setIsSubmitting(false);
             }
         } catch (error) {
-            console.error('Verification failed:', error);
             setKycStatus('failed');
             setIsSubmitting(false);
         }

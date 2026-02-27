@@ -29,11 +29,12 @@ const CheckIcon = memo(() => (
     </svg>
 ));
 
-const DocumentCard = memo(({ title, description, pages, signingComplete }: {
+const DocumentCard = memo(({ title, description, pages, signingComplete, onPreview }: {
     title: string;
     description: string;
     pages: number;
     signingComplete: boolean;
+    onPreview: () => void;
 }) => (
     <div className={`bg-white border rounded-xl p-6 transition-colors ${signingComplete ? 'border-slate-300' : 'border-slate-200 hover:border-slate-300'}`}>
         <div className="flex items-start justify-between">
@@ -48,10 +49,96 @@ const DocumentCard = memo(({ title, description, pages, signingComplete }: {
                     <span>{pages} pages</span>
                 </div>
             </div>
-            <a href="#" className="text-blue-600 hover:text-blue-700 text-sm font-medium">Preview →</a>
+            <button onClick={onPreview} className="text-blue-600 hover:text-blue-700 text-sm font-medium">Preview →</button>
         </div>
     </div>
 ));
+
+// Modal component for document preview
+const PreviewModal = memo(({ document, onClose }: { document: any; onClose: () => void }) => {
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+
+    if (!document) return null;
+
+    // Import from src/templates folder
+    const pdfUrl = `/src/templates/${document.previewName}`;
+
+    return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black bg-opacity-50" onClick={onClose}>
+            <div className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full h-[80vh] flex flex-col overflow-hidden" onClick={(e) => e.stopPropagation()}>
+                {/* Header */}
+                <div className="flex items-center justify-between p-6 border-b border-slate-200 flex-shrink-0">
+                    <div>
+                        <h1 className="text-2xl text-[#130032e6]">Document Preview</h1>
+                    </div>
+                    <button onClick={onClose} className="p-2 hover:bg-slate-100 rounded-lg transition-colors">
+                        <svg className="w-6 h-6 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                    </button>
+                </div>
+
+                {/* Content */}
+                <div className="relative flex-1 overflow-hidden bg-slate-100">
+                    {error ? (
+                        <div className="flex items-center justify-center h-full">
+                            <div className="text-center py-12 px-6">
+                                <div className="w-16 h-16 rounded-full bg-red-100 flex items-center justify-center mx-auto mb-4">
+                                    <svg className="w-8 h-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                    </svg>
+                                </div>
+                                <p className="text-slate-600 font-medium mb-2">Unable to load document preview</p>
+                                <p className="text-sm text-slate-500 mb-4">{error}</p>
+                                <a
+                                    href={pdfUrl}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors"
+                                >
+                                    Open in New Tab
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                                    </svg>
+                                </a>
+                            </div>
+                        </div>
+                    ) : (
+                        <>
+                            {loading && (
+                                <div className="absolute inset-0 flex items-center justify-center bg-white bg-opacity-90 z-10">
+                                    <div className="text-center">
+                                        <div className="w-12 h-12 border-4 border-slate-300 border-t-slate-800 rounded-full animate-spin mx-auto mb-3"></div>
+                                        <p className="text-sm text-slate-600">Loading PDF...</p>
+                                    </div>
+                                </div>
+                            )}
+                            <iframe
+                                src={`${pdfUrl}#toolbar=0&navpanes=0&scrollbar=1`}
+                                className="w-full h-full border-0"
+                                title="Document Preview"
+                                onLoad={() => setLoading(false)}
+                                onError={() => {
+                                    setLoading(false);
+                                    setError('Failed to load PDF document. Please check if the file exists in src/templates folder.');
+                                }}
+                            />
+                        </>
+                    )}
+                </div>
+
+                {/* Footer */}
+                <div className="flex items-center justify-between gap-3 p-6 border-t border-slate-200 bg-slate-50 flex-shrink-0">
+                
+                    <div>
+                        <h1 className="text-[18px] text-slate-800">{document?.previewName}</h1>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+});
 
 export default function SigningPage() {
     const navigate = useNavigate();
@@ -61,6 +148,7 @@ export default function SigningPage() {
     const [signingComplete, setSigningComplete] = useState(false);
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
     const [isCheckingStatus, setIsCheckingStatus] = useState(false);
+    const [previewDocument, setPreviewDocument] = useState<any>(null);
 
     // Check envelope status from DocuSign
     const checkEnvelopeStatus = useCallback(async () => {
@@ -73,7 +161,7 @@ export default function SigningPage() {
             const result = await response.json();
 
             if (result.status === 'completed') {
-                // Convert signedAt to ISO date format
+                sessionStorage.setItem('documentsSigned', 'true');
                 setSigningComplete(true);
                 setIsSigning(false);
             }
@@ -83,27 +171,92 @@ export default function SigningPage() {
         }
     }, []);
 
-    useEffect(() => {
+    // Provision partner account
+    const provisionPartner = useCallback(async () => {
+        try {
+            // Get all required data from sessionStorage
+            const kycDataStr = sessionStorage.getItem('kycData');
+            const partnerDataStr = sessionStorage.getItem('partnerData');
+            const kycSessionId = sessionStorage.getItem('applicantId');
+            const docusignEnvelopeId = sessionStorage.getItem('docusignEnvelopeId');
+            
+            if (!kycDataStr || !partnerDataStr || !kycSessionId || !docusignEnvelopeId) {
+                throw new Error('Missing required data for provisioning');
+            }
+
+            const kycData = JSON.parse(kycDataStr);
+            const partnerData = JSON.parse(partnerDataStr);
+
+            // Extract first and last name from executiveName
+            const nameParts = kycData.executiveName.trim().split(' ');
+            const firstName = nameParts[0];
+            const lastName = nameParts.slice(1).join(' ') || nameParts[0];
+
+            const provisionData = {
+                email: kycData.email,
+                firstName: firstName,
+                lastName: lastName,
+                company: kycData.companyLegalName,
+                website: partnerData.website || '',
+                partnerType: partnerData.partnerType,
+                kycSessionId: kycSessionId,
+                docusignEnvelopeId: docusignEnvelopeId,
+                journeyData: {
+                    completedAt: new Date().toISOString(),
+                    kycData: kycData,
+                    partnerData: partnerData,
+                },
+            };
+
+            const response = await fetch('http://localhost:4000/api/partner/provision', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(provisionData),
+            });
+
+            const result = await response.json();
+
+            if (result.success) {
+                // Store provision result for success page
+                sessionStorage.setItem('provisionResult', JSON.stringify({
+                    organizationId: result.organizationId,
+                    userId: result.userId,
+                    domain: result.domain,
+                }));
+                return true;
+            } else {
+                throw new Error(result.errorMessage || 'Failed to provision partner');
+            }
+        } catch (error) {
+            throw error;
+        }
+    }, []);
+
+    useEffect(() => { 
+        
         // Load KYC data from sessionStorage
         const stored = sessionStorage.getItem('kycData');
+        
         if (stored) {
             setKycData(JSON.parse(stored));
+            
+            // Check if returning from DocuSign
+            const urlParams = new URLSearchParams(window.location.search);
+            const event = urlParams.get('event');
+            
+            if (event === 'signing_complete') {
+                checkEnvelopeStatus();
+                
+                // Clean up URL without the query parameter
+                window.history.replaceState({}, '', '/signing');
+            }
         } else {
             // If no KYC data, redirect back to KYC page
             navigate('/kyc');
-            return;
         }
-
-        
-        const urlParams = new URLSearchParams(window.location.search);
-        const event = urlParams.get('event');
-        if (event === 'signing_complete') {
-            checkEnvelopeStatus();
-            
-            // Clean up URL without the query parameter
-            window.history.replaceState({}, '', '/signing');
-        }
-    }, [navigate]);
+    }, []); // Empty dependency array - only run once on mount
 
     const handleSign = useCallback(async () => {
         if (!agreedToTerms) {
@@ -156,11 +309,40 @@ export default function SigningPage() {
         setAgreedToTerms(false);
     }, []);
 
-    const handleContinue = useCallback(() => navigate('/success'), [navigate]);
+    const handleContinue = useCallback(async () => {
+        // Check if already provisioned
+        const provisionResult = sessionStorage.getItem('provisionResult');
+        
+        if (provisionResult) {
+            navigate('/success', { replace: true });
+            return;
+        }
+
+        // Call provision API
+        setIsCheckingStatus(true);
+        try {
+            const result = await provisionPartner();
+            if (result) {
+                navigate('/success', { replace: true });
+            }
+        } catch (error: any) {
+            setErrorMessage(error.message || 'Account setup failed. Please contact support.');
+        } finally {
+            setIsCheckingStatus(false);
+        }
+    }, [navigate, provisionPartner]);
 
     const handleCheckboxChange = useCallback((checked: boolean) => {
         setAgreedToTerms(checked);
         if (checked) setErrorMessage(null);
+    }, []);
+
+    const handlePreview = useCallback((doc: any) => {
+        setPreviewDocument(doc);
+    }, []);
+
+    const handleClosePreview = useCallback(() => {
+        setPreviewDocument(null);
     }, []);
 
     // Memoized values
@@ -174,12 +356,13 @@ export default function SigningPage() {
         return titles[kycData?.partnerType || ''] || 'Partner Addendum';
     }, [kycData?.partnerType]);
 
-    const documents = useMemo(() => [
-        { title: 'Mutual Non-Disclosure Agreement (NDA)', description: 'Protects confidential information shared between parties', pages: 8 },
-        { title: 'Master Service Agreement (MSA)', description: 'Defines general terms and conditions of partnership', pages: 12 },
-        { title: 'Acceptable Use Policy (AUP)', description: 'Guidelines for acceptable use of WanAware services', pages: 5 },
-        { title: 'Data Processing Agreement (DPA)', description: 'GDPR/privacy compliance for data handling', pages: 10 },
+     const documents = useMemo(() => [
+        { title: 'Mutual Non-Disclosure Agreement (NDA)', description: 'Protects confidential information shared between parties', pages: 8, previewName:"NON-DISCLOSURE_AGREEMENT.pdf" },
+        { title: 'Master Service Agreement (MSA)', description: 'Defines general terms and conditions of partnership', pages: 12, previewName:"MASTER_SERVICE_AGREEMENT.pdf" },
+        { title: 'Acceptable Use Policy (AUP)', description: 'Guidelines for acceptable use of WanAware services', pages: 5,previewName:"ACCEPTABLE_USE_POLICY.pdf" },
+        { title: 'Data Processing Agreement (DPA)', description: 'GDPR/privacy compliance for data handling', pages: 10,previewName:"DATA_PROCESSING_AGREEMENT.pdf" },
     ], []);
+
 
     const buttonContent = useMemo(() => {
         if (signingComplete) {
@@ -304,13 +487,13 @@ export default function SigningPage() {
                         <div className="space-y-4 mb-6">
                             <h2 className="text-sm font-semibold text-slate-600 mb-3">BASE DOCUMENTS (Required for all partners)</h2>
                             {documents.map((doc) => (
-                                <DocumentCard key={doc.title} {...doc} signingComplete={signingComplete} />
+                                <DocumentCard key={doc.title} {...doc} signingComplete={signingComplete} onPreview={() => handlePreview(doc)} />
                             ))}
 
-                            <h2 className="text-sm font-semibold text-slate-600 mt-6 mb-3">PARTNER-SPECIFIC ADDENDUM</h2>
+                            {/* <h2 className="text-sm font-semibold text-slate-600 mt-6 mb-3">PARTNER-SPECIFIC ADDENDUM</h2> */}
 
                             {/* Partner Addendum - varies by type */}
-                            <div className={`border rounded-xl p-6 transition-colors ${signingComplete ? 'bg-blue-50 border-blue-200' : 'bg-blue-50 border-blue-200 hover:border-blue-300'}`}>
+                            {/* <div className={`border rounded-xl p-6 transition-colors ${signingComplete ? 'bg-blue-50 border-blue-200' : 'bg-blue-50 border-blue-200 hover:border-blue-300'}`}>
                                 <div className="flex items-start justify-between">
                                     <div className="flex-1">
                                         <div className="flex items-center gap-2 mb-1">
@@ -328,7 +511,7 @@ export default function SigningPage() {
                                     </div>
                                     <a href="#" className="text-blue-600 hover:text-blue-700 text-sm font-medium">Preview →</a>
                                 </div>
-                            </div>
+                            </div> */}
                         </div>
 
                         {/* Agreement Checkbox - hide when signed */}
@@ -364,6 +547,9 @@ export default function SigningPage() {
                     </>
                 )}
             </div>
+
+            {/* Preview Modal */}
+            {previewDocument && <PreviewModal document={previewDocument} onClose={handleClosePreview} />}
 
             <style>{`
                 @keyframes fadeIn {
