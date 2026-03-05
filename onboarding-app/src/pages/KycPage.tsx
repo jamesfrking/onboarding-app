@@ -1,6 +1,7 @@
 import { useNavigate } from 'react-router-dom';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import SumsubWebSdk from '@sumsub/websdk-react';
+import { COUNTRIES } from '../constants/countries';
 
 interface KycData {
     email: string;
@@ -9,10 +10,10 @@ interface KycData {
     taxId: string;
     executiveName: string;
     executiveTitle: string;
-    businessAddress: string;
+    addressLine1: string;
     city: string;
-    state: string;
-    zipCode: string;
+    province: string;
+    postalCode: string;
     country: string;
 }
 
@@ -29,12 +30,17 @@ interface PartnerData {
     whiteLabelRequired?: string;
 }
 
+
 export default function KycPage() {
     const navigate = useNavigate();
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [kycStatus, setKycStatus] = useState<'pending' | 'verifying' | 'passed' | 'failed'>('pending');
     const [partnerData, setPartnerData] = useState<PartnerData | null>(null);
     const [accessToken, setAccessToken] = useState<string | null>(null);
+    const [addressSuggestions, setAddressSuggestions] = useState<any[]>([]);
+    const [suggestionsPlaceholder, setSuggestionsPlaceholder] = useState('Start Typing to get Suggestions');
+    const [showAddressDropdown, setShowAddressDropdown] = useState(false);
+    const addressInputRef = useRef<HTMLInputElement>(null);
     const [formData, setFormData] = useState<KycData>({
         email: '',
         companyLegalName: '',
@@ -42,12 +48,15 @@ export default function KycPage() {
         taxId: '',
         executiveName: '',
         executiveTitle: '',
-        businessAddress: '',
+        addressLine1: '',
         city: '',
-        state: '',
-        zipCode: '',
-        country: 'US',
+        province: '',
+        postalCode: '',
+        country: '',
     });
+
+    // Get Smarty API key from environment
+    const smartyAPIKey = '185996570711731822';
 
     useEffect(() => {
         const params = new URLSearchParams(window.location.search);
@@ -111,6 +120,170 @@ export default function KycPage() {
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
         const { name, value } = e.target;
         setFormData(prev => ({ ...prev, [name]: value }));
+        
+        // Reset address fields when country changes
+        if (name === 'country') {
+            setFormData(prev => ({
+                ...prev,
+                addressLine1: '',
+                city: '',
+                province: '',
+                postalCode: '',
+            }));
+            setAddressSuggestions([]);
+            setSuggestionsPlaceholder('Start Typing to get Suggestions');
+            setShowAddressDropdown(false);
+        }
+    };
+
+    const fetchAddressSuggestions = async (search: string) => {
+        if (!formData.country || !search || search.length < 1) {
+            setAddressSuggestions([]);
+            setShowAddressDropdown(false);
+            return;
+        }
+        
+        try {
+            const url = formData.country === 'USA'
+                ? `https://us-autocomplete-pro.api.smartystreets.com/lookup?key=${smartyAPIKey}&search=${encodeURIComponent(search)}&prefer_geolocation=none`
+                : `https://international-autocomplete.api.smarty.com/v2/lookup?key=${smartyAPIKey}&country=${formData.country}&search=${encodeURIComponent(search)}`;
+            
+            const response = await fetch(url);
+            
+            if (response.ok) {
+                const data = await response.json();
+                const suggestions = formData.country === 'USA' ? data.suggestions || [] : data.candidates || [];
+                setAddressSuggestions(suggestions);
+                setShowAddressDropdown(suggestions.length > 0);
+            }
+        } catch (error) {
+            console.error('Error fetching address suggestions:', error);
+            setShowAddressDropdown(false);
+        }
+    };
+
+    const handleAddressSelection = async (selection: any) => {
+        if (formData.country === 'USA') {
+            // Handle US address selection
+            setFormData(prev => ({
+                ...prev,
+                addressLine1: selection.addr1,
+                city: selection.locality,
+                province: selection.state,
+                postalCode: selection.zip,
+            }));
+            
+            try {
+                await fetch('http://localhost:4000/api/partner/verify/us-address', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        address1: selection.addr1,
+                        locality: selection.locality,
+                        state: selection.state,
+                    }),
+                });
+            } catch (error) {
+                console.error('Error verifying address:', error);
+            }
+            
+            // Don't clear suggestions - keep them for user to change if needed
+            setShowAddressDropdown(false);
+            setSuggestionsPlaceholder('Start Typing to get Suggestions');
+            // Remove focus from input
+            addressInputRef.current?.blur();
+        } else if (selection.value > 1) {
+            // Handle multi-entry address selection - fetch more specific addresses
+            try {
+                const response = await fetch(
+                    `https://international-autocomplete.api.smarty.com/v2/lookup/${selection.address_id}?country=${formData.country}&key=${smartyAPIKey}`
+                );
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    setAddressSuggestions(data.candidates || []);
+                    setSuggestionsPlaceholder(`Click to select from ${data.candidates.length} Local Addresses`);
+                    // Clear the input to show placeholder
+                    setFormData(prev => ({ ...prev, addressLine1: '' }));
+                    setShowAddressDropdown(false);
+                    // Remove focus from input
+                    addressInputRef.current?.blur();
+                }
+            } catch (error) {
+                console.error('Error fetching detailed suggestions:', error);
+                setShowAddressDropdown(false);
+            }
+        } else {
+            // Handle single address selection
+            try {
+                const response = await fetch(
+                    `https://international-autocomplete.api.smarty.com/v2/lookup/${selection.address_id}?country=${formData.country}&key=${smartyAPIKey}`
+                );
+                
+                if (response.ok) {
+                    const { candidates } = await response.json();
+                    const candidate = candidates[0];
+                    
+                    setFormData(prev => ({
+                        ...prev,
+                        addressLine1: candidate.street || '',
+                        city: candidate.locality || '',
+                        province: candidate.administrative_area || '',
+                        postalCode: candidate.postal_code || '',
+                    }));
+                    
+                    try {
+                        await fetch('http://localhost:4000/api/partner/address-coordinates', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                address1: candidate.street,
+                                locality: candidate.locality,
+                                administrative_area: candidate.administrative_area,
+                                postal_code: candidate.postal_code,
+                                country: formData.country,
+                            }),
+                        });
+                    } catch (error) {
+                        console.error('Error fetching coordinates:', error);
+                    }
+                    
+                    // Don't clear suggestions - keep them available
+                    setShowAddressDropdown(false);
+                    setSuggestionsPlaceholder('Start Typing to get Suggestions');
+                    // Remove focus from input
+                    addressInputRef.current?.blur();
+                }
+            } catch (error) {
+                console.error('Error fetching address details:', error);
+                setShowAddressDropdown(false);
+            }
+        }
+    };
+
+    const getAddressOptions = () => {
+        if (!addressSuggestions.length) {
+            return [{ label: 'Start Typing to get Suggestions', value: '', disabled: true }];
+        }
+
+        if (formData.country === 'USA') {
+            return addressSuggestions.map((addr: any) => ({
+                label: `${addr.street_line}${addr.secondary ? ', ' + addr.secondary : ''}, ${addr.city}`,
+                value: addr.street_line,
+                addr1: addr.street_line,
+                locality: addr.city,
+                zip: addr.zipcode,
+                state: addr.state,
+                disabled: false,
+            }));
+        }
+
+        return addressSuggestions.map((addr: any) => ({
+            label: addr.address_text,
+            value: addr.entries,
+            address_id: addr.address_id,
+            disabled: false,
+        }));
     };
 
     const accessTokenExpirationHandler = useCallback(async () => {
@@ -155,16 +328,11 @@ export default function KycPage() {
         const firstName = nameParts[0] || 'Unknown';
         const lastName = nameParts.slice(1).join(' ') || 'Unknown';
 
-
         try {
             const response = await fetch('http://localhost:4000/api/partner/kyc/create-session', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    ...formData,
-                    firstName,
-                    lastName,
-                }),
+                body: JSON.stringify({ ...formData, firstName, lastName }),
             });
 
             const result = await response.json();
@@ -172,7 +340,7 @@ export default function KycPage() {
             if (result.success || result.token) {
                 sessionStorage.setItem('kycEmail', formData.email);
                 sessionStorage.setItem('kycData', JSON.stringify(formData));
-               sessionStorage.setItem('accessToken', JSON.stringify(result.token));
+                sessionStorage.setItem('accessToken', result.token);
                 setAccessToken(result.token);
                 setKycStatus('pending');
             } else {
@@ -185,8 +353,6 @@ export default function KycPage() {
         }
     };
 
-    // Step indicator component
-    const stepNumber = accessToken ? 1.5 : 1;
     const steps = [
         { num: 1, label: 'Company Info', active: !accessToken },
         { num: 2, label: 'Identity Verification', active: !!accessToken },
@@ -447,63 +613,159 @@ export default function KycPage() {
                                 <div>
                                     <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">Business Address</p>
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        {/* Country */}
                                         <div className="md:col-span-2">
-                                            <label className="block text-sm font-medium text-slate-700 mb-1">Street Address *</label>
-                                            <input type="text" name="businessAddress" value={formData.businessAddress} onChange={handleChange} required
-                                                className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-800 placeholder-slate-400 focus:outline-none focus:bg-white focus:border-slate-400 focus:ring-2 focus:ring-slate-100 transition-all text-sm"
-                                                placeholder="123 Main St, Suite 100" />
-                                        </div>
-                                        <div>
-                                            <label className="block text-sm font-medium text-slate-700 mb-1">City *</label>
-                                            <input type="text" name="city" value={formData.city} onChange={handleChange} required
-                                                className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-800 placeholder-slate-400 focus:outline-none focus:bg-white focus:border-slate-400 focus:ring-2 focus:ring-slate-100 transition-all text-sm" />
-                                        </div>
-                                        <div>
-                                            <label className="block text-sm font-medium text-slate-700 mb-1">State *</label>
-                                            <input type="text" name="state" value={formData.state} onChange={handleChange} required
-                                                className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-800 placeholder-slate-400 focus:outline-none focus:bg-white focus:border-slate-400 focus:ring-2 focus:ring-slate-100 transition-all text-sm" />
-                                        </div>
-                                        <div>
-                                            <label className="block text-sm font-medium text-slate-700 mb-1">ZIP Code *</label>
-                                            <input type="text" name="zipCode" value={formData.zipCode} onChange={handleChange} required
-                                                className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-800 placeholder-slate-400 focus:outline-none focus:bg-white focus:border-slate-400 focus:ring-2 focus:ring-slate-100 transition-all text-sm" />
-                                        </div>
-                                        <div>
-                                            <label className="block text-sm font-medium text-slate-700 mb-1">Country *</label>
-                                            <select name="country" value={formData.country} onChange={handleChange} required
-                                                className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-800 focus:outline-none focus:bg-white focus:border-slate-400 focus:ring-2 focus:ring-slate-100 transition-all text-sm">
-                                                <option value="US">United States</option>
-                                                <option value="CA">Canada</option>
-                                                <option value="GB">United Kingdom</option>
-                                                <option value="AU">Australia</option>
+                                            <label className="block text-sm font-medium text-slate-700 mb-1">
+                                                Country <span className="text-red-400">*</span>
+                                            </label>
+                                            <select 
+                                                name="country" 
+                                                value={formData.country} 
+                                                onChange={handleChange} 
+                                                required
+                                                className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-800 focus:outline-none focus:bg-white focus:border-slate-400 focus:ring-2 focus:ring-slate-100 transition-all text-sm"
+                                            >
+                                                <option value="">Select Country</option>
+                                                {Object.keys(COUNTRIES).sort().map((countryName) => (
+                                                    <option key={COUNTRIES[countryName]} value={COUNTRIES[countryName]}>
+                                                        {countryName}
+                                                    </option>
+                                                ))}
                                             </select>
+                                        </div>
+
+                                        {/* Street Address - Input with Dropdown */}
+                                        <div className="md:col-span-2">
+                                            <label className="block text-sm font-medium text-slate-700 mb-1">
+                                                Street Address <span className="text-red-400">*</span>
+                                            </label>
+                                            <div className="relative">
+                                                <input
+                                                    ref={addressInputRef}
+                                                    type="text"
+                                                    value={formData.addressLine1}
+                                                    onChange={(e) => {
+                                                        const value = e.target.value;
+                                                        setFormData(prev => ({ ...prev, addressLine1: value }));
+                                                        if (suggestionsPlaceholder.includes('Local Addresses')) {
+                                                            setSuggestionsPlaceholder('Start Typing to get Suggestions');
+                                                        }
+                                                        fetchAddressSuggestions(value);
+                                                    }}
+                                                    onFocus={() => addressSuggestions.length > 0 && setShowAddressDropdown(true)}
+                                                    onBlur={() => setTimeout(() => setShowAddressDropdown(false), 200)}
+                                                    disabled={!formData.country}
+                                                    required
+                                                    autoComplete="off"
+                                                    placeholder={formData.country ? suggestionsPlaceholder : "Select a country first"}
+                                                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-800 placeholder-slate-400 focus:outline-none focus:bg-white focus:border-slate-400 focus:ring-2 focus:ring-slate-100 transition-all text-sm disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-slate-100"
+                                                />
+                                                
+                                                {/* Show suggestions dropdown */}
+                                                {showAddressDropdown && addressSuggestions.length > 0 && formData.country && (
+                                                    <div className="absolute z-50 w-full mt-1 bg-white border border-slate-200 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                                                        {getAddressOptions().map((option: any, index: number) => (
+                                                            !option.disabled && (
+                                                                <button
+                                                                    key={index}
+                                                                    type="button"
+                                                                    onMouseDown={(e) => {
+                                                                        e.preventDefault();
+                                                                        handleAddressSelection(option);
+                                                                    }}
+                                                                    className="w-full text-left px-4 py-2.5 hover:bg-slate-50 transition-colors border-b border-slate-100 last:border-b-0 focus:outline-none focus:bg-slate-50 text-sm text-slate-800"
+                                                                >
+                                                                    {option.label}
+                                                                    {option.value > 1 && (
+                                                                        <span className="text-xs text-slate-500 ml-2">
+                                                                            ({option.value} addresses)
+                                                                        </span>
+                                                                    )}
+                                                                </button>
+                                                            )
+                                                        ))}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+
+                                        {/* City */}
+                                        <div>
+                                            <label className="block text-sm font-medium text-slate-700 mb-1">
+                                                City <span className="text-red-400">*</span>
+                                            </label>
+                                            <input 
+                                                type="text" 
+                                                name="city" 
+                                                value={formData.city} 
+                                                onChange={handleChange} 
+                                                required
+                                                disabled
+                                                placeholder="City"
+                                                className="w-full px-4 py-2.5 bg-slate-100 border border-slate-200 rounded-lg text-slate-800 placeholder-slate-400 focus:outline-none transition-all text-sm cursor-not-allowed" 
+                                            />
+                                        </div>
+
+                                        {/* State/Province */}
+                                        <div>
+                                            <label className="block text-sm font-medium text-slate-700 mb-1">
+                                                State/Province <span className="text-red-400">*</span>
+                                            </label>
+                                            <input 
+                                                type="text" 
+                                                name="province" 
+                                                value={formData.province} 
+                                                onChange={handleChange} 
+                                                required
+                                                disabled
+                                                placeholder="State/Province"
+                                                className="w-full px-4 py-2.5 bg-slate-100 border border-slate-200 rounded-lg text-slate-800 placeholder-slate-400 focus:outline-none transition-all text-sm cursor-not-allowed" 
+                                            />
+                                        </div>
+
+                                        {/* ZIP/Postal Code */}
+                                        <div>
+                                            <label className="block text-sm font-medium text-slate-700 mb-1">
+                                                Postal Code <span className="text-red-400">*</span>
+                                            </label>
+                                            <input 
+                                                type="text" 
+                                                name="postalCode" 
+                                                value={formData.postalCode} 
+                                                onChange={handleChange} 
+                                                required
+                                                disabled
+                                                placeholder="Postal Code"
+                                                className="w-full px-4 py-2.5 bg-slate-100 border border-slate-200 rounded-lg text-slate-800 placeholder-slate-400 focus:outline-none transition-all text-sm cursor-not-allowed" 
+                                            />
                                         </div>
                                     </div>
                                 </div>
                             </div>
 
                             {/* Submit button - sits at bottom of card */}
-                            <div className="px-6 py-4 bg-slate-50 border-t border-slate-100">
-                                <button
-                                    type="submit"
-                                    disabled={isSubmitting}
-                                    className="w-full py-3 px-6 bg-slate-800 text-white text-sm font-semibold rounded-lg hover:bg-slate-700 active:bg-slate-900 transition-all duration-200 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                                >
-                                    {isSubmitting ? (
-                                        <>
-                                            <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-                                            Initializing Verification...
-                                        </>
-                                    ) : (
-                                        <>
-                                            Continue to Identity Verification
-                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                                            </svg>
-                                        </>
-                                    )}
-                                </button>
-                            </div>
+                                <div className="px-6 py-4 bg-slate-50 border-t border-slate-100">
+                                    <button
+                                        type="submit"
+                                        disabled={isSubmitting}
+                                        className="w-full py-3 px-6 bg-slate-800 text-white text-sm font-semibold rounded-lg hover:bg-slate-700 active:bg-slate-900 transition-all duration-200 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                                    >
+                                        {isSubmitting ? (
+                                            <>
+                                                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                                                Initializing Verification...
+                                            </>
+                                        ) : (
+                                            <>
+                                                Continue to Identity Verification
+                                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                                                </svg>
+                                            </>
+                                        )}
+                                    </button>
+                                </div>
+                            
                         </form>
 
                         <p className="text-xs text-slate-400 text-center mt-6">

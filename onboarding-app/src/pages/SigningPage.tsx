@@ -206,6 +206,11 @@ export default function SigningPage() {
                     kycData: kycData,
                     partnerData: partnerData,
                 },
+                addressLine1:kycData.addressLine1 || '',
+                city:kycData.city || '',
+                country:kycData.country || '',
+                postalCode:kycData.postalCode || '',
+                province:kycData.province || '',
             };
 
             const response = await fetch('http://localhost:4000/api/partner/provision', {
