@@ -39,7 +39,11 @@ export const getKycData = (urlEmail: string | null, suffix: string = '_kycData')
                 return null;
             }
         }
+        
+        // If URL email is provided but no data found, return null (don't fallback)
+        return null;
     }
-    // Fallback: find from localStorage
+    
+    // Only fallback to searching localStorage when NO URL email is provided
     return findEmailFromLocalStorage(suffix);
 };

@@ -325,6 +325,7 @@ export default function KycPage() {
         if (type === 'idCheck.onApplicantSubmitted') {
             setKycStatus('passed');
             setTimeout(() => {
+                localStorage.setItem(`${formData.email}_kycStatus`, 'passed');
                 navigate(`/signing?email=${formData.email}&partnerType=${formData.partnerType}`);
             }, 2500);
         }

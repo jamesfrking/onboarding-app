@@ -273,6 +273,7 @@ export default function SigningPage() {
             const urlEmail = urlParams.get('email');
             const urlPartnerType = urlParams.get('partnerType');
             
+            
             // Always require both email and partnerType in URL (except when returning from DocuSign)
             if (event !== 'signing_complete' && (!urlEmail || !urlPartnerType)) {
                 setErrorMessage('Both email and partnerType are required in the URL. Please provide: ?email=partner@company.com&partnerType=distributor');
@@ -283,12 +284,13 @@ export default function SigningPage() {
             // Try to find email from URL or localStorage
             const result = getKycData(urlEmail, '_kycData');
                         
-            if (!result) {
-                setErrorMessage('KYC data not found. Please complete the KYC verification first.');
-                setIsCheckingStatus(false);
+            if (!result || localStorage.getItem(`${result.email}_kycStatus`) !== 'passed' ) {
+                navigate(`/kyc?email=${urlEmail}&partnerType=${urlPartnerType}`);
+                // setErrorMessage('KYC data not found. Please complete the KYC verification first.');
+                // setIsCheckingStatus(false);
                 return;
             }
-            
+
             // Set state
             setUserEmail(result.email);
             setKycData(result.data);
@@ -416,7 +418,6 @@ export default function SigningPage() {
 
         const partnerType = kycData?.partnerType?.toLowerCase() || '';
         const partnerAddendum = partnerAddendums[partnerType];
-        console.log(partnerType)
 
         return partnerAddendum ? [...baseDocuments, partnerAddendum] : baseDocuments;
     }, [kycData?.partnerType]);
