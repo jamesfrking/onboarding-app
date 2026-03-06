@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { findEmailFromLocalStorage } from './SigningPage';
 
 interface KycData {
     email: string;
@@ -16,14 +17,21 @@ export default function SuccessPage() {
 
     useEffect(() => {
         // Verify documents were signed
-        const signed = sessionStorage.getItem('documentsSigned');
+        const {email,data} = findEmailFromLocalStorage("_partnerData") as any
+        const signed = localStorage.getItem(`${email}_documentsSigned`);
+        const provisionedResult = localStorage.getItem(`${email}_provisionResult`)
+     
         if (!signed) {
-            navigate('/kyc');
+            navigate(`/kyc?email=${email}&partnerType=${data.partnerType}`);
+            return;
+        } else if(!provisionedResult) {
+            // If documents are signed but provisioning not done, start provisioning
+            navigate('/signing');
             return;
         }
 
         // Load KYC data
-        const stored = sessionStorage.getItem('kycData');
+        const stored = localStorage.getItem(`${email}_kycData`);
         if (stored) {
             setKycData(JSON.parse(stored));
         }
@@ -35,7 +43,7 @@ export default function SuccessPage() {
 
             // Clear session storage after successful provision
             setTimeout(() => {
-                sessionStorage.clear();
+                localStorage.clear();
             }, 5000);
         }, 3000);
     }, [navigate]);

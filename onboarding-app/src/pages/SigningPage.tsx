@@ -8,6 +8,27 @@ interface KycData {
     partnerType?: string;
 }
 
+// Helper function to find email from localStorage
+export const findEmailFromLocalStorage = (suffix: string = '_kycData'): { email: string; data: any } | null => {
+    const allKeys = Object.keys(localStorage);
+    
+    for (const key of allKeys) {
+        if (key.endsWith(suffix)) {
+            const email = key.replace(suffix, '');
+            const stored = localStorage.getItem(key);
+            if (stored) {
+                try {
+                    return { email, data: JSON.parse(stored) };
+                } catch {
+                    return null;
+                }
+            }
+        }
+    }
+    
+    return null;
+};
+
 // Memoized sub-components
 const ProgressStep = memo(({ completed, active, number }: { completed?: boolean; active?: boolean; number?: number }) => (
     <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white font-bold text-sm ${
@@ -54,7 +75,6 @@ const DocumentCard = memo(({ title, description, pages, signingComplete, onPrevi
     </div>
 ));
 
-// Modal component for document preview
 const PreviewModal = memo(({ document, onClose }: { document: any; onClose: () => void }) => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -147,38 +167,44 @@ export default function SigningPage() {
     const [agreedToTerms, setAgreedToTerms] = useState(false);
     const [signingComplete, setSigningComplete] = useState(false);
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
-    const [isCheckingStatus, setIsCheckingStatus] = useState(false);
+    const [isCheckingStatus, setIsCheckingStatus] = useState(true);
     const [previewDocument, setPreviewDocument] = useState<any>(null);
+    const [userEmail, setUserEmail] = useState<string>('');
 
     // Check envelope status from DocuSign
-    const checkEnvelopeStatus = useCallback(async () => {
+    const checkEnvelopeStatus = useCallback(async (email: string) => {
         try {
-            setIsCheckingStatus(true)
-            const envelopeId = sessionStorage.getItem('docusignEnvelopeId');
-            if (!envelopeId) return null;
+            const envelopeId = localStorage.getItem(`${email}_docusignEnvelopeId`);
+            console.log("Checking status - email:", email, "envelopeId:", envelopeId);
+            
+            if (!envelopeId) {
+                return false;
+            }
 
             const response = await fetch(`http://localhost:4000/api/partner/sign/status?envelopeId=${envelopeId}`);
             const result = await response.json();
 
             if (result.status === 'completed') {
-                sessionStorage.setItem('documentsSigned', 'true');
+                localStorage.setItem(`${email}_documentsSigned`, 'true');
                 setSigningComplete(true);
                 setIsSigning(false);
+                return true;
             }
-            setIsCheckingStatus(false);
+            return false;
         } catch (error) {
-            setIsCheckingStatus(false);
+            console.error('Error checking envelope status:', error);
+            return false;
         }
     }, []);
 
     // Provision partner account
     const provisionPartner = useCallback(async () => {
         try {
-            // Get all required data from sessionStorage
-            const kycDataStr = sessionStorage.getItem('kycData');
-            const partnerDataStr = sessionStorage.getItem('partnerData');
-            const kycSessionId = sessionStorage.getItem('applicantId');
-            const docusignEnvelopeId = sessionStorage.getItem('docusignEnvelopeId');
+            // Get all required data from localStorage
+            const kycDataStr = localStorage.getItem(`${userEmail}_kycData`);
+            const partnerDataStr = localStorage.getItem(`${userEmail}_partnerData`);
+            const kycSessionId = localStorage.getItem(`${userEmail}_applicantId`);
+            const docusignEnvelopeId = localStorage.getItem(`${userEmail}_docusignEnvelopeId`);
             
             if (!kycDataStr || !partnerDataStr || !kycSessionId || !docusignEnvelopeId) {
                 throw new Error('Missing required data for provisioning');
@@ -225,7 +251,7 @@ export default function SigningPage() {
 
             if (result.success) {
                 // Store provision result for success page
-                sessionStorage.setItem('provisionResult', JSON.stringify({
+                localStorage.setItem(`${userEmail}_provisionResult`, JSON.stringify({
                     organizationId: result.organizationId,
                     userId: result.userId,
                     domain: result.domain,
@@ -237,31 +263,44 @@ export default function SigningPage() {
         } catch (error) {
             throw error;
         }
-    }, []);
+    }, [userEmail]);
 
     useEffect(() => { 
-        
-        // Load KYC data from sessionStorage
-        const stored = sessionStorage.getItem('kycData');
-        
-        if (stored) {
-            setKycData(JSON.parse(stored));
+        const initializePage = async () => {
+            setIsCheckingStatus(true);
             
-            // Check if returning from DocuSign
             const urlParams = new URLSearchParams(window.location.search);
             const event = urlParams.get('event');
             
-            if (event === 'signing_complete') {
-                checkEnvelopeStatus();
-                
-                // Clean up URL without the query parameter
-                window.history.replaceState({}, '', '/signing');
+            // Try to find email from any stored kycData using helper function
+            const result = findEmailFromLocalStorage('_kycData');
+            
+            console.log('foundEmail:', result?.email, 'event:', event);
+            
+            if (!result) {
+                navigate('/kyc');
+                return;
             }
-        } else {
-            // If no KYC data, redirect back to KYC page
-            navigate('/kyc');
-        }
-    }, []); // Empty dependency array - only run once on mount
+            
+            // Set state
+            setUserEmail(result.email);
+            setKycData(result.data);
+
+            // Check if returning from DocuSign or if documents are already signed
+            if (event === 'signing_complete' || localStorage.getItem(`${result.email}_documentsSigned`)) {
+                await checkEnvelopeStatus(result.email);
+                
+                // Clean up URL
+                if (event === 'signing_complete') {
+                    window.history.replaceState({}, '', '/signing');
+                }
+            }
+            
+            setIsCheckingStatus(false);
+        };
+
+        initializePage();
+    }, [navigate, checkEnvelopeStatus]);
 
     const handleSign = useCallback(async () => {
         if (!agreedToTerms) {
@@ -273,8 +312,8 @@ export default function SigningPage() {
         setErrorMessage(null);
 
         try {
-            // Get partner data from session storage
-            const partnerDataStr = sessionStorage.getItem('partnerData');
+            // Get partner data from localStorage
+            const partnerDataStr = localStorage.getItem(`${userEmail}_partnerData`);
             const partnerData = partnerDataStr ? JSON.parse(partnerDataStr) : null;
             
             // Call DocuSign envelope creation API
@@ -294,8 +333,8 @@ export default function SigningPage() {
 
             if (result.success && result.signingUrl) {
                 // Store envelope ID for tracking
-                sessionStorage.setItem('docusignEnvelopeId', result.envelopeId);
-
+                localStorage.setItem(`${userEmail}_docusignEnvelopeId`, result.envelopeId);
+                console.log(result)
                 // Navigate to signing URL in current window
                 window.location.href = result.signingUrl;
             } else {
@@ -306,7 +345,7 @@ export default function SigningPage() {
             setErrorMessage('An error occurred while setting up document signing. Please try again.');
             setIsSigning(false);
         }
-    }, [agreedToTerms, kycData, checkEnvelopeStatus]);
+    }, [agreedToTerms, kycData, userEmail]);
 
     const handleTryAgain = useCallback(() => {
         setErrorMessage(null);
@@ -316,12 +355,12 @@ export default function SigningPage() {
 
     const handleContinue = useCallback(async () => {
         // Check if already provisioned
-        const provisionResult = sessionStorage.getItem('provisionResult');
+        // const provisionResult = localStorage.getItem(`${userEmail}_provisionResult`);
         
-        if (provisionResult) {
-            navigate('/success', { replace: true });
-            return;
-        }
+        // if (provisionResult) {
+        //     navigate('/success', { replace: true });
+        //     return;
+        // }
 
         // Call provision API
         setIsCheckingStatus(true);
@@ -368,7 +407,6 @@ export default function SigningPage() {
         { title: 'Data Processing Agreement (DPA)', description: 'GDPR/privacy compliance for data handling', pages: 10,previewName:"DATA_PROCESSING_AGREEMENT.pdf" },
     ], []);
 
-
     const buttonContent = useMemo(() => {
         if (signingComplete) {
             return (
@@ -391,15 +429,14 @@ export default function SigningPage() {
         return 'Sign Documents with DocuSign →';
     }, [signingComplete, isSigning]);
 
-    if (!kycData) return null;
-
-    // Show loading while checking status
-    if (isCheckingStatus) {
+    if (!kycData || isCheckingStatus) {
         return (
             <div className="min-h-screen flex items-center justify-center" style={{ background: 'linear-gradient(180deg, #f1f5f9 0%, #e2e8f0 100%)' }}>
                 <div className="text-center">
                     <div className="w-16 h-16 border-4 border-slate-300 border-t-slate-800 rounded-full animate-spin mx-auto mb-4"></div>
-                    <p className="text-slate-600 font-medium">Verifying document status...</p>
+                    <p className="text-slate-600 font-medium">
+                        Loading...
+                    </p>
                     <p className="text-xs text-slate-400 mt-2">Please wait</p>
                 </div>
             </div>
