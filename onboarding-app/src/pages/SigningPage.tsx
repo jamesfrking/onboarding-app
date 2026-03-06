@@ -1,5 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import { useState, useEffect, useMemo, useCallback, memo } from 'react';
+import { getKycData } from '../utils/kycUtils';
 
 interface KycData {
     email: string;
@@ -175,7 +176,6 @@ export default function SigningPage() {
     const checkEnvelopeStatus = useCallback(async (email: string) => {
         try {
             const envelopeId = localStorage.getItem(`${email}_docusignEnvelopeId`);
-            console.log("Checking status - email:", email, "envelopeId:", envelopeId);
             
             if (!envelopeId) {
                 return false;
@@ -192,7 +192,6 @@ export default function SigningPage() {
             }
             return false;
         } catch (error) {
-            console.error('Error checking envelope status:', error);
             return false;
         }
     }, []);
@@ -271,14 +270,22 @@ export default function SigningPage() {
             
             const urlParams = new URLSearchParams(window.location.search);
             const event = urlParams.get('event');
+            const urlEmail = urlParams.get('email');
+            const urlPartnerType = urlParams.get('partnerType');
             
-            // Try to find email from any stored kycData using helper function
-            const result = findEmailFromLocalStorage('_kycData');
+            // Always require both email and partnerType in URL (except when returning from DocuSign)
+            if (event !== 'signing_complete' && (!urlEmail || !urlPartnerType)) {
+                setErrorMessage('Both email and partnerType are required in the URL. Please provide: ?email=partner@company.com&partnerType=distributor');
+                setIsCheckingStatus(false);
+                return;
+            }
             
-            console.log('foundEmail:', result?.email, 'event:', event);
-            
+            // Try to find email from URL or localStorage
+            const result = getKycData(urlEmail, '_kycData');
+                        
             if (!result) {
-                navigate('/kyc');
+                setErrorMessage('KYC data not found. Please complete the KYC verification first.');
+                setIsCheckingStatus(false);
                 return;
             }
             
@@ -290,9 +297,10 @@ export default function SigningPage() {
             if (event === 'signing_complete' || localStorage.getItem(`${result.email}_documentsSigned`)) {
                 await checkEnvelopeStatus(result.email);
                 
-                // Clean up URL
+                // Clean up URL and add parameters
                 if (event === 'signing_complete') {
-                    window.history.replaceState({}, '', '/signing');
+                    const partnerType = result.data.partnerType || '';
+                    window.history.replaceState({}, '', `/signing?email=${result.email}&partnerType=${partnerType}`);
                 }
             }
             
@@ -334,7 +342,6 @@ export default function SigningPage() {
             if (result.success && result.signingUrl) {
                 // Store envelope ID for tracking
                 localStorage.setItem(`${userEmail}_docusignEnvelopeId`, result.envelopeId);
-                console.log(result)
                 // Navigate to signing URL in current window
                 window.location.href = result.signingUrl;
             } else {
@@ -355,19 +362,19 @@ export default function SigningPage() {
 
     const handleContinue = useCallback(async () => {
         // Check if already provisioned
-        // const provisionResult = localStorage.getItem(`${userEmail}_provisionResult`);
+        const provisionResult = localStorage.getItem(`${userEmail}_provisionResult`);
         
-        // if (provisionResult) {
-        //     navigate('/success', { replace: true });
-        //     return;
-        // }
+        if (provisionResult) {
+            navigate(`/success?email=${userEmail}&partnerType=${kycData?.partnerType || ''}`, { replace: true });
+            return;
+        }
 
         // Call provision API
         setIsCheckingStatus(true);
         try {
             const result = await provisionPartner();
             if (result) {
-                navigate('/success', { replace: true });
+                navigate(`/success?email=${userEmail}&partnerType=${kycData?.partnerType || ''}`, { replace: true });
             }
         } catch (error: any) {
             setErrorMessage(error.message || 'Account setup failed. Please contact support.');
@@ -389,23 +396,30 @@ export default function SigningPage() {
         setPreviewDocument(null);
     }, []);
 
-    // Memoized values
-    const partnerAddendumTitle = useMemo(() => {
-        const titles: Record<string, string> = {
-            msp: 'Managed Service Provider (MSP) Addendum',
-            distributor: 'Distributor Addendum',
-            advisor: 'Technology Advisor Addendum',
-            si: 'System Integrator Addendum',
-        };
-        return titles[kycData?.partnerType || ''] || 'Partner Addendum';
-    }, [kycData?.partnerType]);
 
-     const documents = useMemo(() => [
-        { title: 'Mutual Non-Disclosure Agreement (NDA)', description: 'Protects confidential information shared between parties', pages: 8, previewName:"NON-DISCLOSURE_AGREEMENT.pdf" },
-        { title: 'Master Service Agreement (MSA)', description: 'Defines general terms and conditions of partnership', pages: 12, previewName:"MASTER_SERVICE_AGREEMENT.pdf" },
-        { title: 'Acceptable Use Policy (AUP)', description: 'Guidelines for acceptable use of WanAware services', pages: 5,previewName:"ACCEPTABLE_USE_POLICY.pdf" },
-        { title: 'Data Processing Agreement (DPA)', description: 'GDPR/privacy compliance for data handling', pages: 10,previewName:"DATA_PROCESSING_AGREEMENT.pdf" },
-    ], []);
+    const documents = useMemo(() => {
+        // Base documents for all partners
+        const baseDocuments = [
+            { title: 'WanAware Mutual NDA', description: 'Protects confidential information shared between parties', pages: 8, previewName: "WanAware_Mutual_Non-Disclosure_Agreement(NDA).pdf", type: 'base' },
+            { title: 'WanAware Data Processing Addendum', description: 'GDPR/privacy compliance for data handling', pages: 10, previewName: "WanAware_Data_Processing_Addendum.pdf", type: 'base' },
+            { title: 'WanAware Master Subscription Agreement', description: 'Defines general terms and conditions of partnership', pages: 12, previewName: "WanAware_Master_Subscription_Agreement.pdf", type: 'base' },
+        ];
+
+        // Partner-specific addendums
+        const partnerAddendums: Record<string, any> = {
+            distributor: { title: 'Distributor Addendum', description: 'Distributor-specific terms, commission structure, and obligations', pages: 6, previewName: "Distributor_Addendum.pdf", type: 'partner' },
+            reseller: { title: 'Reseller Addendum', description: 'Reseller-specific terms, commission structure, and obligations', pages: 6, previewName: "Reseller_Addendum.pdf", type: 'partner' },
+            // msp: { title: 'Managed Service Provider (MSP) Addendum', description: 'MSP-specific terms, commission structure, and obligations', pages: 6, previewName: "MSP_Addendum.pdf", type: 'partner' },
+            // advisor: { title: 'Technology Advisor Addendum', description: 'Advisor-specific terms, commission structure, and obligations', pages: 6, previewName: "Advisor_Addendum.pdf", type: 'partner' },
+            // si: { title: 'System Integrator Addendum', description: 'SI-specific terms, commission structure, and obligations', pages: 6, previewName: "SI_Addendum.pdf", type: 'partner' },
+        };
+
+        const partnerType = kycData?.partnerType?.toLowerCase() || '';
+        const partnerAddendum = partnerAddendums[partnerType];
+        console.log(partnerType)
+
+        return partnerAddendum ? [...baseDocuments, partnerAddendum] : baseDocuments;
+    }, [kycData?.partnerType]);
 
     const buttonContent = useMemo(() => {
         if (signingComplete) {
@@ -429,14 +443,12 @@ export default function SigningPage() {
         return 'Sign Documents with DocuSign →';
     }, [signingComplete, isSigning]);
 
-    if (!kycData || isCheckingStatus) {
+    if (isCheckingStatus) {
         return (
             <div className="min-h-screen flex items-center justify-center" style={{ background: 'linear-gradient(180deg, #f1f5f9 0%, #e2e8f0 100%)' }}>
                 <div className="text-center">
                     <div className="w-16 h-16 border-4 border-slate-300 border-t-slate-800 rounded-full animate-spin mx-auto mb-4"></div>
-                    <p className="text-slate-600 font-medium">
-                        Loading...
-                    </p>
+                    <p className="text-slate-600 font-medium">Loading...</p>
                     <p className="text-xs text-slate-400 mt-2">Please wait</p>
                 </div>
             </div>
@@ -465,24 +477,39 @@ export default function SigningPage() {
                     <span className={signingComplete ? 'text-slate-700 font-semibold' : ''}>Account Setup</span>
                 </div>
 
-                {/* Error Message - shown when there's an error */}
-                {errorMessage && !signingComplete ? (
+                {/* Error Message - shown when there's a parameter or setup error */}
+                {errorMessage && !kycData ? (
                     <div className="mb-6 bg-red-50 border border-red-200 rounded-xl p-5 flex items-center gap-4 animate-fadeIn">
                         <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center flex-shrink-0">
                             <svg className="w-5 h-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                             </svg>
                         </div>
-                        <div>
-                            <p className="text-sm font-semibold text-red-800">Document signing could not be completed</p>
+                        <div className="flex-1">
+                            <p className="text-sm font-semibold text-red-800">Missing Required Parameters</p>
                             <p className="text-xs text-red-600 mt-0.5">{errorMessage}</p>
                         </div>
-                        <button onClick={handleTryAgain} className="ml-auto px-4 py-2 text-sm font-medium text-red-700 bg-red-100 hover:bg-red-200 rounded-lg transition-colors">
-                            Try Again
-                        </button>
                     </div>
-                ) : (
+                ) : kycData && (
                     <>
+                        {/* Error Message - shown when there's a signing error */}
+                        {errorMessage && !signingComplete && (
+                            <div className="mb-6 bg-red-50 border border-red-200 rounded-xl p-5 flex items-center gap-4 animate-fadeIn">
+                                <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center flex-shrink-0">
+                                    <svg className="w-5 h-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                    </svg>
+                                </div>
+                                <div className="flex-1">
+                                    <p className="text-sm font-semibold text-red-800">Document signing could not be completed</p>
+                                    <p className="text-xs text-red-600 mt-0.5">{errorMessage}</p>
+                                </div>
+                                <button onClick={handleTryAgain} className="ml-auto px-4 py-2 text-sm font-medium text-red-700 bg-red-100 hover:bg-red-200 rounded-lg transition-colors">
+                                    Try Again
+                                </button>
+                            </div>
+                        )}
+
                         {/* Success Message - shown when signing is complete */}
                         {signingComplete && (
                             <div className="mb-6 bg-emerald-50 border border-emerald-200 rounded-xl p-5 animate-fadeIn">
@@ -528,32 +555,36 @@ export default function SigningPage() {
                         {/* Documents List */}
                         <div className="space-y-4 mb-6">
                             <h2 className="text-sm font-semibold text-slate-600 mb-3">BASE DOCUMENTS (Required for all partners)</h2>
-                            {documents.map((doc) => (
+                            {documents.filter(doc => doc.type === 'base').map((doc) => (
                                 <DocumentCard key={doc.title} {...doc} signingComplete={signingComplete} onPreview={() => handlePreview(doc)} />
                             ))}
 
-                            {/* <h2 className="text-sm font-semibold text-slate-600 mt-6 mb-3">PARTNER-SPECIFIC ADDENDUM</h2> */}
-
-                            {/* Partner Addendum - varies by type */}
-                            {/* <div className={`border rounded-xl p-6 transition-colors ${signingComplete ? 'bg-blue-50 border-blue-200' : 'bg-blue-50 border-blue-200 hover:border-blue-300'}`}>
-                                <div className="flex items-start justify-between">
-                                    <div className="flex-1">
-                                        <div className="flex items-center gap-2 mb-1">
-                                            <h3 className="font-semibold text-slate-800">{partnerAddendumTitle}</h3>
-                                            {signingComplete && <CheckIcon />}
-                                            <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-medium">
-                                                {kycData.partnerType?.toUpperCase() || 'PARTNER'}
-                                            </span>
+                            {documents.some(doc => doc.type === 'partner') && (
+                                <>
+                                    <h2 className="text-sm font-semibold text-slate-600 mt-6 mb-3">PARTNER-SPECIFIC ADDENDUM</h2>
+                                    {documents.filter(doc => doc.type === 'partner').map((doc) => (
+                                        <div key={doc.title} className={`border rounded-xl p-6 transition-colors ${signingComplete ? 'bg-blue-50 border-blue-200' : 'bg-blue-50 border-blue-200 hover:border-blue-300'}`}>
+                                            <div className="flex items-start justify-between">
+                                                <div className="flex-1">
+                                                    <div className="flex items-center gap-2 mb-1">
+                                                        <h3 className="font-semibold text-slate-800">{doc.title}</h3>
+                                                        {signingComplete && <CheckIcon />}
+                                                        <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-medium">
+                                                            {kycData.partnerType?.toUpperCase() || 'PARTNER'}
+                                                        </span>
+                                                    </div>
+                                                    <p className="text-sm text-slate-600 mb-3">{doc.description}</p>
+                                                    <div className="flex items-center gap-2 text-xs text-slate-400">
+                                                        <DocumentIcon />
+                                                        <span>{doc.pages} pages</span>
+                                                    </div>
+                                                </div>
+                                                <button onClick={() => handlePreview(doc)} className="text-blue-600 hover:text-blue-700 text-sm font-medium">Preview →</button>
+                                            </div>
                                         </div>
-                                        <p className="text-sm text-slate-600 mb-3">Partner-specific terms, commission structure, and obligations</p>
-                                        <div className="flex items-center gap-2 text-xs text-slate-400">
-                                            <DocumentIcon />
-                                            <span>6 pages</span>
-                                        </div>
-                                    </div>
-                                    <a href="#" className="text-blue-600 hover:text-blue-700 text-sm font-medium">Preview →</a>
-                                </div>
-                            </div> */}
+                                    ))}
+                                </>
+                            )}
                         </div>
 
                         {/* Agreement Checkbox - hide when signed */}
@@ -567,7 +598,7 @@ export default function SigningPage() {
                                         className="mt-1 w-5 h-5 rounded border-slate-300 text-slate-800 focus:ring-slate-400"
                                     />
                                     <span className="text-sm text-slate-700">
-                                        I have reviewed and agree to all 5 documents listed above on behalf of <strong>{kycData.companyLegalName}</strong>. I confirm that I have the authority to execute these agreements.
+                                        I have reviewed and agree to all {documents.length} documents listed above on behalf of <strong>{kycData.companyLegalName}</strong>. I confirm that I have the authority to execute these agreements.
                                     </span>
                                 </label>
                             </div>

@@ -2,6 +2,7 @@ import { useNavigate } from 'react-router-dom';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import SumsubWebSdk from '@sumsub/websdk-react';
 import { COUNTRIES } from '../constants/countries';
+import { getKycData } from '../utils/kycUtils';
 
 interface KycData {
     email: string;
@@ -15,6 +16,7 @@ interface KycData {
     province: string;
     postalCode: string;
     country: string;
+    partnerType?: string;
 }
 
 interface PartnerData {
@@ -56,6 +58,7 @@ export default function KycPage() {
         province: '',
         postalCode: '',
         country: '',
+        partnerType: '',
     });
 
     // Get Smarty API key from environment
@@ -76,7 +79,6 @@ export default function KycPage() {
                 return;
             }
 
-            let currentEmail = urlEmail;
             let partnerInfo: PartnerData | null = null;
 
             const stored = localStorage.getItem(`${urlEmail}_partnerData`);
@@ -108,19 +110,21 @@ export default function KycPage() {
                     email: partnerInfo.email,
                     companyLegalName: partnerInfo.company,
                     executiveName: `${partnerInfo.firstName} ${partnerInfo.lastName}`.trim(),
+                    partnerType: partnerInfo.partnerType,
                 }));
             }
 
-            // Check KYC status
-            if (currentEmail) {
-                const applicantId = localStorage.getItem(`${currentEmail}_applicantId`);
+            // Check KYC status using getKycData utility
+            const kycResult = getKycData(urlEmail, '_kycData');
+            if (kycResult) {
+                const applicantId = localStorage.getItem(`${kycResult.email}_applicantId`);
                 
                 if (applicantId) {
                     const res = await fetch(`http://localhost:4000/api/partner/kyc/status?applicantId=${applicantId}`);
                     const data = await res.json();
                     
                     if (data.status === 'completed') {
-                        navigate(`/signing`);
+                        navigate(`/signing?email=${kycResult?.email}&partnerType=${partnerInfo?.partnerType}`);
                         return;
                     }
                 }
@@ -312,9 +316,7 @@ export default function KycPage() {
     };
 
     const handleSumsubMessage = (type: string, payload: any) => {
-        console.log(type, payload);
         if(type === 'idCheck.onApplicantLoaded'){
-            console.log(formData)
             if (formData.email) {
                 localStorage.setItem(`${formData.email}_applicantId`, payload.applicantId);
             }
@@ -323,7 +325,7 @@ export default function KycPage() {
         if (type === 'idCheck.onApplicantSubmitted') {
             setKycStatus('passed');
             setTimeout(() => {
-                navigate('/signing');
+                navigate(`/signing?email=${formData.email}&partnerType=${formData.partnerType}`);
             }, 2500);
         }
     };
