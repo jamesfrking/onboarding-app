@@ -405,6 +405,7 @@ export default function SigningPage() {
             { title: 'WanAware Mutual NDA', description: 'Protects confidential information shared between parties', pages: 8, previewName: "WanAware_Mutual_Non-Disclosure_Agreement(NDA).pdf", type: 'base' },
             { title: 'WanAware Data Processing Addendum', description: 'GDPR/privacy compliance for data handling', pages: 10, previewName: "WanAware_Data_Processing_Addendum.pdf", type: 'base' },
             { title: 'WanAware Master Subscription Agreement', description: 'Defines general terms and conditions of partnership', pages: 12, previewName: "WanAware_Master_Subscription_Agreement.pdf", type: 'base' },
+            { title: 'WanAware Acceptable Use Policy', description: 'Guidelines for acceptable use of WanAware services', pages: 5, previewName: "WanAware_Acceptable_Use_Policy.pdf", type: 'base' }
         ];
 
         // Partner-specific addendums
