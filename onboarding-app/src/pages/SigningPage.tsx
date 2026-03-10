@@ -1,6 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import { useState, useEffect, useMemo, useCallback, memo } from 'react';
 import { getKycData } from '../utils/kycUtils';
+import API_ENDPOINTS from '../config/api';
 
 interface KycData {
     email: string;
@@ -181,7 +182,7 @@ export default function SigningPage() {
                 return false;
             }
 
-            const response = await fetch(`http://localhost:4000/api/partner/sign/status?envelopeId=${envelopeId}`);
+            const response = await fetch(API_ENDPOINTS.DOCUSIGN_STATUS(envelopeId));
             const result = await response.json();
 
             if (result.status === 'completed') {
@@ -238,7 +239,7 @@ export default function SigningPage() {
                 province:kycData.province || '',
             };
 
-            const response = await fetch('http://localhost:4000/api/partner/provision', {
+            const response = await fetch(API_ENDPOINTS.PROVISION_PARTNER, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -327,7 +328,7 @@ export default function SigningPage() {
             const partnerData = partnerDataStr ? JSON.parse(partnerDataStr) : null;
             
             // Call DocuSign envelope creation API
-            const response = await fetch('http://localhost:4000/api/partner/sign/create-envelope', {
+            const response = await fetch(API_ENDPOINTS.DOCUSIGN_CREATE_ENVELOPE, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
