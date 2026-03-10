@@ -3,6 +3,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import SumsubWebSdk from '@sumsub/websdk-react';
 import { COUNTRIES } from '../constants/countries';
 import { getKycData } from '../utils/kycUtils';
+import API_ENDPOINTS from '../config/api';
 
 interface KycData {
     email: string;
@@ -74,7 +75,7 @@ export default function KycPage() {
             
             // Always require both email and partnerType in URL
             if (!urlEmail || !urlPartnerType) {
-                setErrorMessage('Both email and partnerType are required in the URL. Please provide: ?email=partner@company.com&partnerType=advisor');
+                setErrorMessage('Both email and partnerType are required in the URL. Please provide: ?email=partner@company.com&partnerType=msp');
                 setIsCheckingStatus(false);
                 return;
             }
@@ -302,7 +303,7 @@ export default function KycPage() {
     };
 
     const accessTokenExpirationHandler = async () => {
-        const response = await fetch('http://localhost:4000/api/partner/kyc/create-session', {
+        const response = await fetch(API_ENDPOINTS.KYC_CREATE_SESSION, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(formData),
@@ -347,7 +348,7 @@ export default function KycPage() {
         const lastName = nameParts.slice(1).join(' ') || 'Unknown';
 
         try {
-            const response = await fetch('http://localhost:4000/api/partner/kyc/create-session', {
+            const response = await fetch(API_ENDPOINTS.KYC_CREATE_SESSION, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ ...formData, firstName, lastName }),
