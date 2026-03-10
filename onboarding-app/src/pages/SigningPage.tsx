@@ -176,7 +176,7 @@ export default function SigningPage() {
     // Check envelope status from DocuSign
     const checkEnvelopeStatus = useCallback(async (email: string) => {
         try {
-            const envelopeId = localStorage.getItem(`${email}_docusignEnvelopeId`);
+            const envelopeId = localStorage.getItem(`${email}_signingEnvelopeId`);
             
             if (!envelopeId) {
                 return false;
@@ -204,7 +204,7 @@ export default function SigningPage() {
             const kycDataStr = localStorage.getItem(`${userEmail}_kycData`);
             const partnerDataStr = localStorage.getItem(`${userEmail}_partnerData`);
             const kycSessionId = localStorage.getItem(`${userEmail}_applicantId`);
-            const docusignEnvelopeId = localStorage.getItem(`${userEmail}_docusignEnvelopeId`);
+            const docusignEnvelopeId = localStorage.getItem(`${userEmail}_signingEnvelopeId`);
             
             if (!kycDataStr || !partnerDataStr || !kycSessionId || !docusignEnvelopeId) {
                 throw new Error('Missing required data for provisioning');
@@ -344,7 +344,7 @@ export default function SigningPage() {
 
             if (result.success && result.signingUrl) {
                 // Store envelope ID for tracking
-                localStorage.setItem(`${userEmail}_docusignEnvelopeId`, result.envelopeId);
+                localStorage.setItem(`${userEmail}_signingEnvelopeId`, result.envelopeId);
                 // Navigate to signing URL in current window
                 window.location.href = result.signingUrl;
             } else {
@@ -404,18 +404,18 @@ export default function SigningPage() {
         // Base documents for all partners
         const baseDocuments = [
             { title: 'WanAware Mutual NDA', description: 'Protects confidential information shared between parties', pages: 8, previewName: "WanAware_Mutual_Non-Disclosure_Agreement(NDA).pdf", type: 'base' },
-            { title: 'WanAware Data Processing Addendum', description: 'GDPR/privacy compliance for data handling', pages: 10, previewName: "WanAware_Data_Processing_Addendum.pdf", type: 'base' },
             { title: 'WanAware Master Subscription Agreement', description: 'Defines general terms and conditions of partnership', pages: 12, previewName: "WanAware_Master_Subscription_Agreement.pdf", type: 'base' },
-            { title: 'WanAware Acceptable Use Policy', description: 'Guidelines for acceptable use of WanAware services', pages: 5, previewName: "WanAware_Acceptable_Use_Policy.pdf", type: 'base' }
+            { title: 'WanAware Acceptable Use Policy', description: 'Guidelines for acceptable use of WanAware services', pages: 5, previewName: "WanAware_Acceptable_Use_Policy.pdf", type: 'base' },
+            { title: 'WanAware Data Processing Addendum', description: 'GDPR/privacy compliance for data handling', pages: 10, previewName: "WanAware_Data_Processing_Addendum.pdf", type: 'base' },
         ];
 
         // Partner-specific addendums
         const partnerAddendums: Record<string, any> = {
+            msp:         { title: 'Reseller Addendum', description: 'MSP-specific terms, commission structure, and obligations', pages: 6, previewName: "Reseller_Addendum.pdf", type: 'partner' },
             distributor: { title: 'Distributor Addendum', description: 'Distributor-specific terms, commission structure, and obligations', pages: 6, previewName: "Distributor_Addendum.pdf", type: 'partner' },
-            reseller: { title: 'Reseller Addendum', description: 'Reseller-specific terms, commission structure, and obligations', pages: 6, previewName: "Reseller_Addendum.pdf", type: 'partner' },
-            // msp: { title: 'Managed Service Provider (MSP) Addendum', description: 'MSP-specific terms, commission structure, and obligations', pages: 6, previewName: "MSP_Addendum.pdf", type: 'partner' },
-            // advisor: { title: 'Technology Advisor Addendum', description: 'Advisor-specific terms, commission structure, and obligations', pages: 6, previewName: "Advisor_Addendum.pdf", type: 'partner' },
-            // si: { title: 'System Integrator Addendum', description: 'SI-specific terms, commission structure, and obligations', pages: 6, previewName: "SI_Addendum.pdf", type: 'partner' },
+            si:          { title: 'System Integrator Addendum', description: 'SI-specific terms, commission structure, and obligations', pages: 6, previewName: "SI_Addendum.pdf", type: 'partner' },
+            advisor:     { title: 'Technology Advisor Addendum', description: 'Advisor-specific terms, commission structure, and obligations', pages: 6, previewName: "Advisor_Addendum.pdf", type: 'partner' },
+            reseller:    { title: 'Reseller Addendum', description: 'Reseller-specific terms, commission structure, and obligations', pages: 6, previewName: "Reseller_Addendum.pdf", type: 'partner' },
         };
 
         const partnerType = kycData?.partnerType?.toLowerCase() || '';
@@ -439,11 +439,11 @@ export default function SigningPage() {
             return (
                 <>
                     <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                    Opening DocuSign...
+                    Opening DocuSeal...
                 </>
             );
         }
-        return 'Sign Documents with DocuSign →';
+        return 'Sign Documents with DocuSeal →';
     }, [signingComplete, isSigning]);
 
     if (isCheckingStatus) {
@@ -618,7 +618,7 @@ export default function SigningPage() {
 
                         {/* Security Notice */}
                         <p className="text-xs text-slate-400 text-center mt-4">
-                            🔒 {signingComplete ? 'Documents secured by DocuSign' : 'Your signature is legally binding and encrypted'}
+                            🔒 {signingComplete ? 'Documents secured by DocuSeal' : 'Your signature is legally binding and encrypted'}
                         </p>
                     </>
                 )}
