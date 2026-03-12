@@ -1,6 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import { useState, useEffect, useCallback, useRef } from 'react';
-import Persona from 'persona';
+import SumsubWebSdk from '@sumsub/websdk-react';
 import { COUNTRIES } from '../constants/countries';
 import { getKycData } from '../utils/kycUtils';
 import API_ENDPOINTS from '../config/api';
@@ -26,7 +26,6 @@ interface PartnerData {
     lastName: string;
     company: string;
     partnerType: string;
-    verificationType: 'individual' | 'business';
     goal: string;
     targetSize: string;
     regions: string;
@@ -40,8 +39,7 @@ export default function KycPage() {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [kycStatus, setKycStatus] = useState<'pending' | 'verifying' | 'passed' | 'failed'>('pending');
     const [partnerData, setPartnerData] = useState<PartnerData | null>(null);
-    const [inquiryId, setInquiryId] = useState<string | null>(null);
-    const [verificationOpen, setVerificationOpen] = useState(false);
+    const [accessToken, setAccessToken] = useState<string | null>(null);
     const [addressSuggestions, setAddressSuggestions] = useState<any[]>([]);
     const [suggestionsPlaceholder, setSuggestionsPlaceholder] = useState('Start Typing to get Suggestions');
     const [showAddressDropdown, setShowAddressDropdown] = useState(false);
@@ -74,8 +72,7 @@ export default function KycPage() {
             const params = new URLSearchParams(window.location.search);
             const urlEmail = params.get('email');
             const urlPartnerType = params.get('partnerType');
-            const urlVerificationType = params.get('verificationType') as 'individual' | 'business' || 'individual';
-
+            
             // Always require both email and partnerType in URL
             if (!urlEmail || !urlPartnerType) {
                 setErrorMessage('Both email and partnerType are required in the URL. Please provide: ?email=partner@company.com&partnerType=msp');
@@ -97,7 +94,6 @@ export default function KycPage() {
                     lastName: params.get('lastName') || '',
                     company: params.get('company') || '',
                     partnerType: urlPartnerType,
-                    verificationType: urlVerificationType,
                     goal: params.get('goal') || '',
                     targetSize: params.get('targetSize') || '',
                     regions: params.get('regions') || '',
@@ -122,13 +118,13 @@ export default function KycPage() {
             // Check KYC status using getKycData utility
             const kycResult = getKycData(urlEmail, '_kycData');
             if (kycResult) {
-                const storedInquiryId = localStorage.getItem(`${kycResult.email}_inquiryId`);
-
-                if (storedInquiryId) {
-                    const res = await fetch(API_ENDPOINTS.KYC_STATUS(storedInquiryId));
+                const applicantId = localStorage.getItem(`${kycResult.email}_applicantId`);
+                
+                if (applicantId) {
+                    const res = await fetch(`http://localhost:4000/api/partner/kyc/status?applicantId=${applicantId}`);
                     const data = await res.json();
-
-                    if (data.data?.status === 'completed' && data.data?.decision === 'approved') {
+                    
+                    if (data.status === 'completed') {
                         navigate(`/signing?email=${kycResult?.email}&partnerType=${partnerInfo?.partnerType}`);
                         return;
                     }
@@ -306,32 +302,39 @@ export default function KycPage() {
         }));
     };
 
-    const openPersonaVerification = (personaInquiryId: string) => {
-        setVerificationOpen(true);
-        const client = new (Persona as any).Client({
-            inquiryId: personaInquiryId,
-            frameWidth: '650px',
-            frameHeight: '750px',
-            onComplete: ({ inquiryId: completedId, status }: { inquiryId: string; status: string }) => {
-                setVerificationOpen(false);
-                setKycStatus('passed');
-                localStorage.setItem(`${formData.email}_kycStatus`, 'passed');
-                setTimeout(() => {
-                    navigate(`/signing?email=${formData.email}&partnerType=${formData.partnerType}`);
-                }, 2500);
-            },
-            onCancel: () => {
-                setVerificationOpen(false);
-                setKycStatus('pending');
-                setIsSubmitting(false);
-            },
-            onError: (error: any) => {
-                setVerificationOpen(false);
-                setKycStatus('failed');
-                setIsSubmitting(false);
-            },
+    const accessTokenExpirationHandler = async () => {
+        const response = await fetch(API_ENDPOINTS.KYC_CREATE_SESSION, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(formData),
         });
-        client.open();
+        const result = await response.json();
+        
+        if (result.success || result.token) {
+            return result.token;
+        }
+        throw new Error('Failed to refresh access token');
+    };
+
+    const handleSumsubMessage = (type: string, payload: any) => {
+        if(type === 'idCheck.onApplicantLoaded'){
+            if (formData.email) {
+                localStorage.setItem(`${formData.email}_applicantId`, payload.applicantId);
+            }
+        }
+
+        if (type === 'idCheck.onApplicantSubmitted') {
+            setKycStatus('passed');
+            setTimeout(() => {
+                localStorage.setItem(`${formData.email}_kycStatus`, 'passed');
+                navigate(`/signing?email=${formData.email}&partnerType=${formData.partnerType}`);
+            }, 2500);
+        }
+    };
+
+    const handleSumsubError = (error: any) => {
+        setKycStatus('failed');
+        setIsSubmitting(false);
     };
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -348,19 +351,16 @@ export default function KycPage() {
             const response = await fetch(API_ENDPOINTS.KYC_CREATE_SESSION, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ ...formData, firstName, lastName, verificationType: partnerData?.verificationType || 'individual' }),
+                body: JSON.stringify({ ...formData, firstName, lastName }),
             });
 
             const result = await response.json();
-            const newInquiryId = result.data?.inquiryId || result.inquiryId;
 
-            if (newInquiryId) {
+            if (result.success || result.token) {
                 // Store with email-prefixed keys
                 localStorage.setItem(`${formData.email}_kycData`, JSON.stringify(formData));
-                localStorage.setItem(`${formData.email}_inquiryId`, newInquiryId);
-                setInquiryId(newInquiryId);
+                setAccessToken(result.token);
                 setKycStatus('pending');
-                openPersonaVerification(newInquiryId);
             } else {
                 setKycStatus('failed');
                 setIsSubmitting(false);
@@ -371,10 +371,9 @@ export default function KycPage() {
         }
     };
 
-    const isKYB = partnerData?.verificationType === 'business';
     const steps = [
-        { num: 1, label: 'Company Info', active: !verificationOpen },
-        { num: 2, label: isKYB ? 'Business Verification' : 'Identity Verification', active: verificationOpen },
+        { num: 1, label: 'Company Info', active: !accessToken },
+        { num: 2, label: 'Identity Verification', active: !!accessToken },
         { num: 3, label: 'Document Signing' },
         { num: 4, label: 'Account Setup' },
     ];
@@ -418,11 +417,11 @@ export default function KycPage() {
                             <div className="flex items-center gap-2.5 flex-shrink-0">
                                 <div className={`
                                     w-7 h-7 rounded-full flex items-center justify-center text-xs font-semibold transition-all duration-500
-                                    ${step.num < 2 || (step.num === 2 && verificationOpen)
+                                    ${step.num < 2 || (step.num === 2 && accessToken)
                                         ? 'bg-slate-800 text-white shadow-sm'
                                         : 'bg-slate-100 text-slate-400 border border-slate-200'}
                                 `}>
-                                    {step.num < 2 && verificationOpen ? (
+                                    {step.num < 2 && accessToken ? (
                                         <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
                                         </svg>
@@ -466,20 +465,68 @@ export default function KycPage() {
                     {/* Main content */}
                     <div className="max-w-4xl mx-auto px-6 py-8">
 
-                        {/* Verification in progress banner */}
-                        {verificationOpen && kycStatus !== 'failed' && (
-                            <div className="mb-6 bg-blue-50 border border-blue-200 rounded-xl p-5 flex items-center gap-4 animate-fadeIn">
-                                <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
-                                    <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-                                    </svg>
-                                </div>
-                                <div className="flex-1">
-                                    <p className="text-sm font-semibold text-blue-800">Identity verification in progress</p>
-                                    <p className="text-xs text-blue-600 mt-0.5">Complete the verification in the Persona window</p>
-                                </div>
-                                <div className="ml-auto">
-                                    <div className="w-5 h-5 border-2 border-blue-400 border-t-transparent rounded-full animate-spin"></div>
+                        {/* Verification modal overlay */}
+                        {accessToken && kycStatus !== 'failed' && (
+                            <div className="fixed inset-0 z-50 animate-fadeIn">
+                                {/* Backdrop */}
+                                <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
+
+                                {/* Modal */}
+                                <div className="absolute inset-0 flex items-center justify-center p-4">
+                                    <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col animate-scaleIn">
+                                        {/* Modal header */}
+                                        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 flex-shrink-0">
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center">
+                                                    <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                                                    </svg>
+                                                </div>
+                                                <div>
+                                                    <h2 className="text-base font-semibold text-slate-800">Identity Verification</h2>
+                                                    <p className="text-xs text-slate-400">Complete the steps below to continue</p>
+                                                </div>
+                                            </div>
+                                            <button
+                                                onClick={() => {
+                                                    setAccessToken(null);
+                                                    setKycStatus('pending');
+                                                    setIsSubmitting(false);
+                                                }}
+                                                className="w-8 h-8 rounded-full hover:bg-slate-100 flex items-center justify-center transition-colors text-slate-400 hover:text-slate-600"
+                                            >
+                                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                                </svg>
+                                            </button>
+                                        </div>
+
+                                        {/* SDK container - scrollable */}
+                                        <div className="flex-1 overflow-y-auto">
+                                            <SumsubWebSdk
+                                                accessToken={accessToken}
+                                                expirationHandler={accessTokenExpirationHandler}
+                                                config={{
+                                                    lang: 'en',
+                                                    theme: 'light',
+                                                }}
+                                                options={{
+                                                    addViewportTag: false,
+                                                    adaptIframeHeight: true,
+                                                }}
+                                                onMessage={handleSumsubMessage}
+                                                onError={handleSumsubError}
+                                            />
+                                        </div>
+
+                                        {/* Modal footer */}
+                                        <div className="flex items-center justify-center gap-2 px-6 py-3 border-t border-slate-100 flex-shrink-0">
+                                            <svg className="w-3 h-3 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                                            </svg>
+                                            <span className="text-[11px] text-slate-400">Secured by Sumsub &middot; Encrypted &middot; GDPR compliant</span>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         )}
@@ -516,8 +563,7 @@ export default function KycPage() {
                                 </div>
                                 <button
                                     onClick={() => {
-                                        setInquiryId(null);
-                                        setVerificationOpen(false);
+                                        setAccessToken(null);
                                         setKycStatus('pending');
                                         setIsSubmitting(false);
                                     }}
@@ -529,7 +575,7 @@ export default function KycPage() {
                         )}
 
                         {/* Form view */}
-                        {!verificationOpen && kycStatus !== 'failed' && (
+                        {!accessToken && kycStatus !== 'failed' && (
                             <div className="max-w-2xl mx-auto animate-fadeIn">
                                 <div className="text-center mb-8">
                                     <h1 className="text-2xl font-semibold text-slate-800">Company Verification</h1>
@@ -553,10 +599,6 @@ export default function KycPage() {
                                                 <div className="flex gap-1.5">
                                                     <span className="text-slate-400">Type:</span>
                                                     <span className="text-slate-600 capitalize">{partnerData.partnerType || 'MSP'}</span>
-                                                </div>
-                                                <div className="flex gap-1.5">
-                                                    <span className="text-slate-400">Verification:</span>
-                                                    <span className="text-slate-600 capitalize">{partnerData.verificationType === 'business' ? 'Business (KYB)' : 'Individual (KYC)'}</span>
                                                 </div>
                                             </div>
                                         </div>
