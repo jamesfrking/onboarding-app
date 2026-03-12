@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom';
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Persona from 'persona';
 import { COUNTRIES } from '../constants/countries';
 import { getKycData } from '../utils/kycUtils';
@@ -128,7 +128,7 @@ export default function KycPage() {
                     const res = await fetch(API_ENDPOINTS.KYC_STATUS(storedInquiryId));
                     const data = await res.json();
 
-                    if (data.data?.status === 'completed' && data.data?.decision === 'approved') {
+                    if (data?.status === 'approved' || data?.status === 'completed') {
                         navigate(`/signing?email=${kycResult?.email}&partnerType=${partnerInfo?.partnerType}`);
                         return;
                     }
@@ -312,7 +312,7 @@ export default function KycPage() {
             inquiryId: personaInquiryId,
             frameWidth: '650px',
             frameHeight: '750px',
-            onComplete: ({ inquiryId: completedId, status }: { inquiryId: string; status: string }) => {
+            onComplete: () => {
                 setVerificationOpen(false);
                 setKycStatus('passed');
                 localStorage.setItem(`${formData.email}_kycStatus`, 'passed');
@@ -325,7 +325,7 @@ export default function KycPage() {
                 setKycStatus('pending');
                 setIsSubmitting(false);
             },
-            onError: (error: any) => {
+            onError: () => {
                 setVerificationOpen(false);
                 setKycStatus('failed');
                 setIsSubmitting(false);

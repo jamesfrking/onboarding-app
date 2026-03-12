@@ -203,7 +203,7 @@ export default function SigningPage() {
             // Get all required data from localStorage
             const kycDataStr = localStorage.getItem(`${userEmail}_kycData`);
             const partnerDataStr = localStorage.getItem(`${userEmail}_partnerData`);
-            const kycSessionId = localStorage.getItem(`${userEmail}_applicantId`);
+            const kycSessionId = localStorage.getItem(`${userEmail}_inquiryId`);
             const docusignEnvelopeId = localStorage.getItem(`${userEmail}_signingEnvelopeId`);
             
             if (!kycDataStr || !partnerDataStr || !kycSessionId || !docusignEnvelopeId) {

@@ -18,7 +18,20 @@ export default function SuccessPage() {
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
     const [isCheckingStatus, setIsCheckingStatus] = useState(true);
 
-    // Remove the local getKycData useCallback
+    // Clear all localStorage data for the current user
+    const clearAllData = (email: string) => {
+        const keysToRemove = [
+            `${email}_kycData`,
+            `${email}_partnerData`,
+            `${email}_signingEnvelopeId`,
+            `${email}_documentsSigned`,
+            `${email}_provisionResult`,
+            `${email}_kycStatus`,
+            `${email}_inquiryId`,
+        ];
+        
+        keysToRemove.forEach(key => localStorage.removeItem(key));
+    };
 
     useEffect(() => {
         const initializePage = async () => {
@@ -73,18 +86,7 @@ export default function SuccessPage() {
 
                 // Clear only email-specific data after successful provision
                 setTimeout(() => {
-                    const emailPrefix = currentEmail;
-                    const keysToRemove = [
-                        `${emailPrefix}_kycData`,
-                        `${emailPrefix}_partnerData`,
-                        `${emailPrefix}_applicantId`,
-                        `${emailPrefix}_signingEnvelopeId`,
-                        `${emailPrefix}_documentsSigned`,
-                        `${emailPrefix}_provisionResult`,
-                        `${emailPrefix}_kycStatus`,
-                    ];
-                    
-                    keysToRemove.forEach(key => localStorage.removeItem(key));
+                    clearAllData(currentEmail);
                 }, 5000);
             }, 3000);
         };
