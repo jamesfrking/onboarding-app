@@ -411,11 +411,11 @@ export default function SigningPage() {
 
         // Partner-specific addendums
         const partnerAddendums: Record<string, any> = {
-            msp:         { title: 'Reseller Addendum', description: 'MSP-specific terms, commission structure, and obligations', pages: 6, previewName: "Reseller_Addendum.pdf", type: 'partner' },
             distributor: { title: 'Distributor Addendum', description: 'Distributor-specific terms, commission structure, and obligations', pages: 6, previewName: "Distributor_Addendum.pdf", type: 'partner' },
-            si:          { title: 'System Integrator Addendum', description: 'SI-specific terms, commission structure, and obligations', pages: 6, previewName: "SI_Addendum.pdf", type: 'partner' },
-            advisor:     { title: 'Technology Advisor Addendum', description: 'Advisor-specific terms, commission structure, and obligations', pages: 6, previewName: "Advisor_Addendum.pdf", type: 'partner' },
             reseller:    { title: 'Reseller Addendum', description: 'Reseller-specific terms, commission structure, and obligations', pages: 6, previewName: "Reseller_Addendum.pdf", type: 'partner' },
+            // msp:         { title: 'MSP Addendum', description: 'MSP-specific terms, commission structure, and obligations', pages: 6, previewName: "MSP_Addendum.pdf", type: 'partner' },
+            // advisor:     { title: 'Technology Advisor Addendum', description: 'Advisor-specific terms, commission structure, and obligations', pages: 6, previewName: "Advisor_Addendum.pdf", type: 'partner' },
+            // si:          { title: 'System Integrator Addendum', description: 'SI-specific terms, commission structure, and obligations', pages: 6, previewName: "SI_Addendum.pdf", type: 'partner' },
         };
 
         const partnerType = kycData?.partnerType?.toLowerCase() || '';

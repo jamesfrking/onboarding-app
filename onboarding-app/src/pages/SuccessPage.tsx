@@ -78,9 +78,10 @@ export default function SuccessPage() {
                         `${emailPrefix}_kycData`,
                         `${emailPrefix}_partnerData`,
                         `${emailPrefix}_applicantId`,
-                        `${emailPrefix}_docusignEnvelopeId`,
+                        `${emailPrefix}_signingEnvelopeId`,
                         `${emailPrefix}_documentsSigned`,
                         `${emailPrefix}_provisionResult`,
+                        `${emailPrefix}_kycStatus`,
                     ];
                     
                     keysToRemove.forEach(key => localStorage.removeItem(key));
