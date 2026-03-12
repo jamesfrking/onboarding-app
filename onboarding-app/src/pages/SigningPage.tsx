@@ -1,6 +1,10 @@
 import { useNavigate } from 'react-router-dom';
 import { useState, useEffect, useMemo, useCallback, memo } from 'react';
 import { getKycData } from '../utils/kycUtils';
+import {
+    getActiveOnboardingEmail,
+    setActiveOnboardingEmail,
+} from '../utils/onboardingSession';
 import API_ENDPOINTS from '../config/api';
 
 interface KycData {
@@ -203,10 +207,10 @@ export default function SigningPage() {
             // Get all required data from localStorage
             const kycDataStr = localStorage.getItem(`${userEmail}_kycData`);
             const partnerDataStr = localStorage.getItem(`${userEmail}_partnerData`);
-            const kycSessionId = localStorage.getItem(`${userEmail}_inquiryId`);
+            const inquiryId = localStorage.getItem(`${userEmail}_inquiryId`);
             const docusignEnvelopeId = localStorage.getItem(`${userEmail}_signingEnvelopeId`);
             
-            if (!kycDataStr || !partnerDataStr || !kycSessionId || !docusignEnvelopeId) {
+            if (!kycDataStr || !partnerDataStr || !inquiryId || !docusignEnvelopeId) {
                 throw new Error('Missing required data for provisioning');
             }
 
@@ -225,7 +229,7 @@ export default function SigningPage() {
                 company: kycData.companyLegalName,
                 website: partnerData.website || '',
                 partnerType: partnerData.partnerType,
-                kycSessionId: kycSessionId,
+                kycSessionId: inquiryId,
                 docusignEnvelopeId: docusignEnvelopeId,
                 journeyData: {
                     completedAt: new Date().toISOString(),
@@ -272,39 +276,33 @@ export default function SigningPage() {
             const urlParams = new URLSearchParams(window.location.search);
             const event = urlParams.get('event');
             const urlEmail = urlParams.get('email');
-            const urlPartnerType = urlParams.get('partnerType');
-            
-            
-            // Always require both email and partnerType in URL (except when returning from DocuSign)
-            if (event !== 'signing_complete' && (!urlEmail || !urlPartnerType)) {
-                setErrorMessage('Both email and partnerType are required in the URL. Please provide: ?email=partner@company.com&partnerType=distributor');
+            const activeEmail = urlEmail || getActiveOnboardingEmail();
+
+            if (!activeEmail) {
+                setErrorMessage('Onboarding session not found. Please restart from your onboarding link.');
                 setIsCheckingStatus(false);
                 return;
             }
             
-            // Try to find email from URL or localStorage
-            const result = getKycData(urlEmail, '_kycData');
+            const result = getKycData(activeEmail, '_kycData');
                         
             if (!result || localStorage.getItem(`${result.email}_kycStatus`) !== 'passed' ) {
-                navigate(`/kyc?email=${urlEmail}&partnerType=${urlPartnerType}`);
-                // setErrorMessage('KYC data not found. Please complete the KYC verification first.');
-                // setIsCheckingStatus(false);
+                navigate('/kyc', { replace: true });
                 return;
             }
 
             // Set state
+            setActiveOnboardingEmail(result.email);
             setUserEmail(result.email);
             setKycData(result.data);
 
             // Check if returning from DocuSign or if documents are already signed
             if (event === 'signing_complete' || localStorage.getItem(`${result.email}_documentsSigned`)) {
                 await checkEnvelopeStatus(result.email);
-                
-                // Clean up URL and add parameters
-                if (event === 'signing_complete') {
-                    const partnerType = result.data.partnerType || '';
-                    window.history.replaceState({}, '', `/signing?email=${result.email}&partnerType=${partnerType}`);
-                }
+            }
+
+            if (window.location.search) {
+                window.history.replaceState({}, '', window.location.pathname);
             }
             
             setIsCheckingStatus(false);
@@ -368,7 +366,7 @@ export default function SigningPage() {
         const provisionResult = localStorage.getItem(`${userEmail}_provisionResult`);
         
         if (provisionResult) {
-            navigate(`/success?email=${userEmail}&partnerType=${kycData?.partnerType || ''}`, { replace: true });
+            navigate('/success', { replace: true });
             return;
         }
 
@@ -377,14 +375,14 @@ export default function SigningPage() {
         try {
             const result = await provisionPartner();
             if (result) {
-                navigate(`/success?email=${userEmail}&partnerType=${kycData?.partnerType || ''}`, { replace: true });
+                navigate('/success', { replace: true });
             }
         } catch (error: any) {
             setErrorMessage(error.message || 'Account setup failed. Please contact support.');
         } finally {
             setIsCheckingStatus(false);
         }
-    }, [navigate, provisionPartner]);
+    }, [navigate, provisionPartner, userEmail]);
 
     const handleCheckboxChange = useCallback((checked: boolean) => {
         setAgreedToTerms(checked);
@@ -489,7 +487,7 @@ export default function SigningPage() {
                             </svg>
                         </div>
                         <div className="flex-1">
-                            <p className="text-sm font-semibold text-red-800">Missing Required Parameters</p>
+                            <p className="text-sm font-semibold text-red-800">Onboarding Session Error</p>
                             <p className="text-xs text-red-600 mt-0.5">{errorMessage}</p>
                         </div>
                     </div>
@@ -639,4 +637,3 @@ export default function SigningPage() {
         </div>
     );
 }
-

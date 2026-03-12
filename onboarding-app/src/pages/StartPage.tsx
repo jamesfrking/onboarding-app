@@ -1,5 +1,12 @@
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useEffect, useState } from 'react';
+import {
+    getActiveOnboardingEmail,
+    getSessionPartnerData,
+    setActiveOnboardingSession,
+} from '../utils/onboardingSession';
+
+type VerificationType = 'individual' | 'business';
 
 interface PartnerData {
     email: string;
@@ -8,9 +15,12 @@ interface PartnerData {
     company: string;
     website?: string;
     partnerType: string;
+    verificationType: VerificationType;
     goal?: string;
     targetSize?: string;
     regions?: string;
+    mspOffers?: string;
+    whiteLabelRequired?: string;
     // Journey data from questionnaire
     journeyData?: {
         mspOffers?: string[];
@@ -24,7 +34,13 @@ interface PartnerData {
         kickoffWindow?: string;
         execSponsorNamed?: string;
         weeklyTimeCommitment?: string;
+        verificationType?: VerificationType;
+        verification_type?: VerificationType;
     };
+}
+
+function normalizeVerificationType(value: unknown): VerificationType {
+    return value === 'business' ? 'business' : 'individual';
 }
 
 export default function StartPage() {
@@ -36,17 +52,35 @@ export default function StartPage() {
     const email = searchParams.get('email');
 
     useEffect(() => {
-        // Demo mode: Falls back to demo data when backend isn't available
-        const BACKEND_URL = (import.meta as unknown as { env: Record<string, string> }).env.VITE_BACKEND_URL || 'https://partners.wanaware.com';
+        const env = (import.meta as unknown as { env: Record<string, string> }).env;
+        const BACKEND_URL =
+            env.VITE_API_BASE_URL ||
+            env.VITE_BACKEND_URL ||
+            'https://partners.wanaware.com';
+        const existingPartnerData = getSessionPartnerData<PartnerData>();
+        const activeEmail = email || getActiveOnboardingEmail();
 
-        if (!email) {
+        const persistPartnerSession = (data: PartnerData) => {
+            setPartnerData(data);
+            setActiveOnboardingSession(data);
+            localStorage.setItem(`${data.email}_partnerData`, JSON.stringify(data));
+        };
+
+        if (!email && existingPartnerData) {
+            setPartnerData(existingPartnerData);
+            setLoading(false);
+            return;
+        }
+
+        if (!activeEmail) {
             // No email - use demo mode
-            setPartnerData({
+            persistPartnerSession({
                 email: 'demo@example.com',
                 firstName: 'Demo',
                 lastName: 'Partner',
                 company: 'Demo Company',
                 partnerType: 'msp',
+                verificationType: 'individual',
                 goal: 'recurring',
                 targetSize: 'SMB',
                 regions: 'North America',
@@ -55,7 +89,11 @@ export default function StartPage() {
             return;
         }
 
-        const userEmail = email; // Capture for use in async function
+        const userEmail = activeEmail;
+
+        if (email && window.location.search) {
+            window.history.replaceState({}, '', window.location.pathname);
+        }
 
         async function fetchPartnerData() {
             try {
@@ -71,27 +109,41 @@ export default function StartPage() {
                 const data = await response.json();
 
                 // Map backend response to our interface
-                setPartnerData({
+                persistPartnerSession({
                     email: data.email,
                     firstName: data.first_name || data.firstName || '',
                     lastName: data.last_name || data.lastName || '',
                     company: data.company || '',
                     website: data.website || '',
                     partnerType: data.partner_type || data.partnerType || 'msp',
+                    verificationType: normalizeVerificationType(
+                        data.verification_type ||
+                            data.verificationType ||
+                            data.journey_data?.verification_type ||
+                            data.journey_data?.verificationType
+                    ),
                     goal: data.journey_data?.goal || data.goal || '',
                     targetSize: data.journey_data?.targetCustomerSize || data.targetSize || '',
                     regions: data.journey_data?.regionsServed?.join(', ') || data.regions || '',
+                    mspOffers: Array.isArray(data.journey_data?.mspOffers)
+                        ? data.journey_data.mspOffers.join('; ')
+                        : data.mspOffers || '',
+                    whiteLabelRequired:
+                        data.journey_data?.whiteLabelRequired ||
+                        data.whiteLabelRequired ||
+                        '',
                     journeyData: data.journey_data || {},
                 });
             } catch (err) {
                 console.warn('Backend not available, using demo data:', err);
                 // Fallback to demo data with provided email
-                setPartnerData({
+                persistPartnerSession({
                     email: userEmail,
                     firstName: 'Demo',
                     lastName: 'Partner',
                     company: 'Demo Company',
                     partnerType: 'msp',
+                    verificationType: 'individual',
                     goal: 'recurring',
                     targetSize: 'SMB',
                     regions: 'North America',
@@ -106,7 +158,9 @@ export default function StartPage() {
 
     const handleContinue = () => {
         if (partnerData) {
-            sessionStorage.setItem('partnerData', JSON.stringify(partnerData));
+            setActiveOnboardingSession(partnerData);
+            navigate('/kyc');
+            return;
         }
         navigate('/kyc');
     };
