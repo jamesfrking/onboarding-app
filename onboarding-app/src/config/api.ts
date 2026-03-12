@@ -10,7 +10,7 @@ export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localho
 export const API_ENDPOINTS = {
   // KYC Endpoints
   KYC_CREATE_SESSION: `${API_BASE_URL}/api/partner/kyc/create-session`,
-  KYC_STATUS: (applicantId: string) => `${API_BASE_URL}/api/partner/kyc/status?applicantId=${applicantId}`,
+  KYC_STATUS: (inquiryId: string) => `${API_BASE_URL}/api/partner/kyc/status?inquiryId=${inquiryId}`,
   KYC_ADDRESS_VERIFY: `${API_BASE_URL}/api/partner/verify/us-address`,
   KYC_ADDRESS_COORDINATES: `${API_BASE_URL}/api/partner/kyc/address-coordinates`,
   
