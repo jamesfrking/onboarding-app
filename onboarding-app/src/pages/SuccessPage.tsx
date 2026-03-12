@@ -1,6 +1,11 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getKycData } from '../utils/kycUtils';
+import {
+    clearActiveOnboardingSession,
+    getActiveOnboardingEmail,
+    setActiveOnboardingEmail,
+} from '../utils/onboardingSession';
 
 interface KycData {
     email: string;
@@ -17,73 +22,68 @@ export default function SuccessPage() {
     const [provisioned, setProvisioned] = useState(false);
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
     const [isCheckingStatus, setIsCheckingStatus] = useState(true);
-
-    // Remove the local getKycData useCallback
-
     useEffect(() => {
         const initializePage = async () => {
             setIsCheckingStatus(true);
             
             const urlParams = new URLSearchParams(window.location.search);
             const urlEmail = urlParams.get('email');
-            const urlPartnerType = urlParams.get('partnerType');
+            const activeEmail = urlEmail || getActiveOnboardingEmail();
             
-            // Require both email and partnerType in URL
-            if (!urlEmail || !urlPartnerType) {
-                setErrorMessage('Both email and partnerType are required in the URL. Please provide: ?email=partner@company.com&partnerType=distributor');
+            if (!activeEmail) {
+                setErrorMessage('Onboarding session not found. Please restart from your onboarding link.');
                 setIsCheckingStatus(false);
                 return;
             }
             
-            // Try to get KYC data for the specific email from URL
-            const result = getKycData(urlEmail, '_kycData');
+            const result = getKycData(activeEmail, '_kycData');
             
-            // If no email or data found, show error
             if (!result || !result.email || !result.data) {
-                navigate(`/kyc?email=${urlEmail}&partnerType=${urlPartnerType}`);
+                navigate('/kyc', { replace: true });
                 setErrorMessage('Session data not found. Please complete the onboarding process from the beginning.');
                 setIsCheckingStatus(false);
                 return;
             }
 
             const currentEmail = result.email;
-            const currentPartnerType = urlPartnerType || result.data.partnerType || '';
+            setActiveOnboardingEmail(currentEmail);
             
-            // Verify documents were signed
             const signed = localStorage.getItem(`${currentEmail}_documentsSigned`);
             const provisionedResult = localStorage.getItem(`${currentEmail}_provisionResult`);
          
             if (!signed) {
-                navigate(`/kyc?email=${currentEmail}&partnerType=${currentPartnerType}`);
+                navigate('/kyc', { replace: true });
                 return;
             } else if (!provisionedResult) {
-                // If documents are signed but provisioning not done, redirect to signing
-                navigate(`/signing?email=${currentEmail}&partnerType=${currentPartnerType}`);
+                navigate('/signing', { replace: true });
                 return;
             }
 
-            // Set KYC data
+            if (window.location.search) {
+                window.history.replaceState({}, '', window.location.pathname);
+            }
+
             setKycData(result.data);
             setIsCheckingStatus(false);
 
-            // Simulate provisioning (in production, this would call the backend)
             setTimeout(() => {
                 setIsProvisioning(false);
                 setProvisioned(true);
 
-                // Clear only email-specific data after successful provision
                 setTimeout(() => {
                     const emailPrefix = currentEmail;
                     const keysToRemove = [
                         `${emailPrefix}_kycData`,
                         `${emailPrefix}_partnerData`,
-                        `${emailPrefix}_applicantId`,
-                        `${emailPrefix}_docusignEnvelopeId`,
+                        `${emailPrefix}_inquiryId`,
+                        `${emailPrefix}_signingEnvelopeId`,
+                        `${emailPrefix}_kycStatus`,
                         `${emailPrefix}_documentsSigned`,
                         `${emailPrefix}_provisionResult`,
                     ];
                     
                     keysToRemove.forEach(key => localStorage.removeItem(key));
+                    clearActiveOnboardingSession();
                 }, 5000);
             }, 3000);
         };

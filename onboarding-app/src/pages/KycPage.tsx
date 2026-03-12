@@ -1,8 +1,13 @@
 import { useNavigate } from 'react-router-dom';
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Persona from 'persona';
 import { COUNTRIES } from '../constants/countries';
 import { getKycData } from '../utils/kycUtils';
+import {
+    getActiveOnboardingEmail,
+    getSessionPartnerData,
+    setActiveOnboardingSession,
+} from '../utils/onboardingSession';
 import API_ENDPOINTS from '../config/api';
 
 interface KycData {
@@ -25,6 +30,7 @@ interface PartnerData {
     firstName: string;
     lastName: string;
     company: string;
+    website?: string;
     partnerType: string;
     verificationType: 'individual' | 'business';
     goal: string;
@@ -74,23 +80,27 @@ export default function KycPage() {
             const params = new URLSearchParams(window.location.search);
             const urlEmail = params.get('email');
             const urlPartnerType = params.get('partnerType');
-            const urlVerificationType = params.get('verificationType') as 'individual' | 'business' || 'individual';
-
-            // Always require both email and partnerType in URL
-            if (!urlEmail || !urlPartnerType) {
-                setErrorMessage('Both email and partnerType are required in the URL. Please provide: ?email=partner@company.com&partnerType=msp');
-                setIsCheckingStatus(false);
-                return;
-            }
+            const urlVerificationType =
+                (params.get('verificationType') as 'individual' | 'business') ||
+                'individual';
+            const sessionPartnerData = getSessionPartnerData<PartnerData>();
+            const activeEmail = urlEmail || sessionPartnerData?.email || getActiveOnboardingEmail();
 
             let partnerInfo: PartnerData | null = null;
 
-            const stored = localStorage.getItem(`${urlEmail}_partnerData`);
-            
-            if (stored) {
-                partnerInfo = JSON.parse(stored);
-            } else {
-                // Create new partner data from URL params
+            if (activeEmail) {
+                const stored = localStorage.getItem(`${activeEmail}_partnerData`);
+                if (stored) {
+                    partnerInfo = JSON.parse(stored);
+                }
+            }
+
+            if (!partnerInfo && sessionPartnerData) {
+                partnerInfo = sessionPartnerData;
+            }
+
+            if (!partnerInfo && urlEmail && urlPartnerType) {
+                // Backward-compatible fallback for legacy links that still send full query params.
                 partnerInfo = {
                     email: urlEmail,
                     firstName: params.get('firstName') || '',
@@ -107,30 +117,50 @@ export default function KycPage() {
                 localStorage.setItem(`${urlEmail}_partnerData`, JSON.stringify(partnerInfo));
             }
 
-            // Set partner data and form data
-            if (partnerInfo) {
-                setPartnerData(partnerInfo);
-                setFormData(prev => ({
-                    ...prev,
-                    email: partnerInfo.email,
-                    companyLegalName: partnerInfo.company,
-                    executiveName: `${partnerInfo.firstName} ${partnerInfo.lastName}`.trim(),
-                    partnerType: partnerInfo.partnerType,
-                }));
+            if (!partnerInfo) {
+                setErrorMessage('Onboarding session not found. Please restart from your onboarding link.');
+                setIsCheckingStatus(false);
+                return;
             }
 
+            setActiveOnboardingSession(partnerInfo);
+
+            if (window.location.search) {
+                window.history.replaceState({}, '', window.location.pathname);
+            }
+
+            // Set partner data and form data
+            setPartnerData(partnerInfo);
+            setFormData(prev => ({
+                ...prev,
+                email: partnerInfo.email,
+                companyLegalName: partnerInfo.company,
+                executiveName: `${partnerInfo.firstName} ${partnerInfo.lastName}`.trim(),
+                partnerType: partnerInfo.partnerType,
+            }));
+
             // Check KYC status using getKycData utility
-            const kycResult = getKycData(urlEmail, '_kycData');
+            const kycResult = getKycData(partnerInfo.email, '_kycData');
             if (kycResult) {
                 const storedInquiryId = localStorage.getItem(`${kycResult.email}_inquiryId`);
 
                 if (storedInquiryId) {
-                    const res = await fetch(API_ENDPOINTS.KYC_STATUS(storedInquiryId));
-                    const data = await res.json();
+                    try {
+                        const res = await fetch(API_ENDPOINTS.KYC_STATUS(storedInquiryId));
+                        const data = await res.json();
+                        const inquiryStatus = data.data?.status || data.status;
+                        const inquiryDecision = data.data?.decision || data.decision;
 
-                    if (data.data?.status === 'completed' && data.data?.decision === 'approved') {
-                        navigate(`/signing?email=${kycResult?.email}&partnerType=${partnerInfo?.partnerType}`);
-                        return;
+                        if (
+                            inquiryStatus === 'approved' ||
+                            inquiryDecision === 'approved' ||
+                            (inquiryStatus === 'completed' && !inquiryDecision)
+                        ) {
+                            navigate('/signing', { replace: true });
+                            return;
+                        }
+                    } catch (error) {
+                        console.warn('Unable to check saved KYC status, continuing onboarding flow.', error);
                     }
                 }
             }
@@ -197,7 +227,7 @@ export default function KycPage() {
             }));
             
             try {
-                await fetch('http://localhost:4000/api/partner/verify/us-address', {
+                await fetch(API_ENDPOINTS.KYC_ADDRESS_VERIFY, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
@@ -254,7 +284,7 @@ export default function KycPage() {
                     }));
                     
                     try {
-                        await fetch('http://localhost:4000/api/partner/kyc/address-coordinates', {
+                        await fetch(API_ENDPOINTS.KYC_ADDRESS_COORDINATES, {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({
@@ -312,12 +342,12 @@ export default function KycPage() {
             inquiryId: personaInquiryId,
             frameWidth: '650px',
             frameHeight: '750px',
-            onComplete: ({ inquiryId: completedId, status }: { inquiryId: string; status: string }) => {
+            onComplete: () => {
                 setVerificationOpen(false);
                 setKycStatus('passed');
                 localStorage.setItem(`${formData.email}_kycStatus`, 'passed');
                 setTimeout(() => {
-                    navigate(`/signing?email=${formData.email}&partnerType=${formData.partnerType}`);
+                    navigate('/signing', { replace: true });
                 }, 2500);
             },
             onCancel: () => {
@@ -325,7 +355,7 @@ export default function KycPage() {
                 setKycStatus('pending');
                 setIsSubmitting(false);
             },
-            onError: (error: any) => {
+            onError: () => {
                 setVerificationOpen(false);
                 setKycStatus('failed');
                 setIsSubmitting(false);
@@ -456,7 +486,7 @@ export default function KycPage() {
                             </svg>
                         </div>
                         <div className="flex-1">
-                            <p className="text-sm font-semibold text-red-800">Missing Required Parameters</p>
+                            <p className="text-sm font-semibold text-red-800">Onboarding Session Error</p>
                             <p className="text-xs text-red-600 mt-0.5">{errorMessage}</p>
                         </div>
                     </div>
