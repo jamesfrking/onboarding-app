@@ -70,8 +70,7 @@ export default function KycPage() {
         partnerType: '',
     });
 
-    // Get Smarty API key from environment
-    const smartyAPIKey = '185996570711731822';
+    const smartyAPIKey = import.meta.env.VITE_LOCATION_EMBEDDED_KEY || '';
 
     useEffect(() => {
         const initializePage = async () => {
@@ -191,6 +190,13 @@ export default function KycPage() {
     };
 
     const fetchAddressSuggestions = async (search: string) => {
+        if (!smartyAPIKey) {
+            setAddressSuggestions([]);
+            setSuggestionsPlaceholder('Address lookup is currently unavailable');
+            setShowAddressDropdown(false);
+            return;
+        }
+
         if (!formData.country || !search || search.length < 1) {
             setAddressSuggestions([]);
             setShowAddressDropdown(false);
@@ -216,6 +222,11 @@ export default function KycPage() {
     };
 
     const handleAddressSelection = async (selection: any) => {
+        if (!smartyAPIKey) {
+            setShowAddressDropdown(false);
+            return;
+        }
+
         if (formData.country === 'USA') {
             // Handle US address selection
             setFormData(prev => ({
