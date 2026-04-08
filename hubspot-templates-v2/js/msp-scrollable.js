@@ -2228,7 +2228,7 @@ if (document.readyState === 'loading') {
         whiteLabelRequired: state.whiteLabelRequired || ''
       };
 
-      fetch('https://partners.wanaware.com/hubspot-onboarding-hook', {
+      fetch('https://portal.dev.wanaware.com/api/partner/hubspot-hook', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(backendPayload)
