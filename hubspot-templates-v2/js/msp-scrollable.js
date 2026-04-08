@@ -103,9 +103,9 @@ if (document.readyState === 'loading') {
     reseller: {
       label: 'Reseller',
       short: 'Reseller',
-      telemetry: 'SI integration path synced. Modernization de-risking and compliance evidence ready.',
-      subtext: 'Integrate observability into transformation programs to accelerate outcomes and satisfy compliance on day one.',
-      hero: 'Engineering outcomes without overhead.'
+      telemetry: 'Reseller channel path synced. White-label tools, margin controls, and bundled offers ready.',
+      subtext: 'Resell WanAware under your brand with turnkey provisioning, tiered margins, and co-branded reporting.',
+      hero: 'Your brand. Our platform. Recurring revenue.'
     },
     advisor: {
       label: 'Technology Advisor',
@@ -193,24 +193,24 @@ if (document.readyState === 'loading') {
     },
     reseller: {
       recurring: [
-        'Model: bundle managed services into transformation deals.',
-        'Levers: outcome SLAs, success metrics, value realization.',
-        'KPI: NRR and post‑sale expansion within 120 days.'
+        'Model: bundle WanAware into your existing service packages.',
+        'Levers: tiered margins, white-label portal, co-branded reports.',
+        'KPI: MRR growth and customer attach rate within 90 days.'
       ],
       services: [
-        'Program: accelerate complex service launches.',
-        'Levers: governance model, change management kit, delivery runbooks.',
-        'KPI: time‑to‑first‑value and deployment variance.'
+        'Program: launch reseller offers with turnkey provisioning.',
+        'Levers: self-serve portal, branded onboarding, deal-reg protection.',
+        'KPI: time‑to‑first‑sale and activation rate.'
       ],
       retention: [
-        'Outcome: executive‑ready proof across lifecycle.',
-        'Levers: health reviews, telemetry narrative, advocacy pipeline.',
-        'KPI: executive satisfaction and renewal predictability.'
+        'Outcome: customer stickiness through bundled value.',
+        'Levers: health dashboards, automated QBRs, renewal alerts.',
+        'KPI: churn reduction and renewal predictability.'
       ],
       cosell: [
-        'Motion: unify co‑sell for enterprise programs.',
-        'Levers: shared pipeline, governance, field activation.',
-        'KPI: enterprise win rate and stage advancement speed.'
+        'Motion: joint go-to-market with WanAware field team.',
+        'Levers: shared pipeline, demo environments, proof-of-value kits.',
+        'KPI: pipeline growth and co-sell win rate.'
       ]
     }
   };
@@ -353,10 +353,10 @@ if (document.readyState === 'loading') {
       cosell: { label: 'Amplify Territory', descriptor: 'Align our field with yours, leverage MDF, and run portable proof/ROI plays to expand regional coverage.' }
     },
     reseller: {
-      recurring: { label: 'Add Recurring Streams', descriptor: 'Attach post-project managed visibility to stabilize outcomes and monetize ongoing assurance.' },
-      services: { label: 'De-Risk Delivery', descriptor: 'Use topology discovery, dependency maps, and API-first integrations to accelerate cutovers and reduce rollbacks.' },
-      retention: { label: 'Compliance on Day One', descriptor: 'Provide SOC 2/ISO evidence straight from live telemetry to keep audits clean and sponsors aligned.' },
-      cosell: { label: 'Enterprise Co-Sell', descriptor: 'Run executive-level briefs that tie telemetry to KPIs, supported by accelerators and industry playbooks.' }
+      recurring: { label: 'Build Recurring Revenue', descriptor: 'Bundle WanAware into your stack with tiered margins, white-label portals, and co-branded reporting.' },
+      services: { label: 'Launch Turnkey Offers', descriptor: 'Self-serve provisioning, branded onboarding kits, and deal-reg protection to activate fast.' },
+      retention: { label: 'Maximize Renewals', descriptor: 'Automated QBRs, health dashboards, and renewal alerts keep customers sticky and revenue predictable.' },
+      cosell: { label: 'Joint Go-to-Market', descriptor: 'Shared pipeline, demo environments, and proof-of-value kits to win together in every territory.' }
     }
   };
 
@@ -552,24 +552,24 @@ if (document.readyState === 'loading') {
     },
     reseller: {
       recurring: [
-        { title: 'Attach Managed Visibility', badge: 'Services', stat: 'Stabilizes post-go-live outcomes', icon: 'link', copy: () => 'Create a recurring post-project stream alongside transformation work.' },
-        { title: 'Monetize Integration IP', badge: 'IP', stat: 'Better utilization of bench time', icon: 'code', copy: () => 'Package connectors and dashboards as SKUs for reuse.' },
-        { title: 'Outcome SLAs', badge: 'Assurance', stat: 'Shorter dispute cycles with evidence', icon: 'check-circle', copy: () => 'Tie app KPIs to telemetry for measurable guarantees.' }
+        { title: 'White-Label Portal', badge: 'Brand', stat: 'Your brand on every customer touchpoint', icon: 'layout', copy: () => 'Fully branded portal with your logo, colors, and domain.' },
+        { title: 'Tiered Margin Program', badge: 'Revenue', stat: 'Better margins as volume grows', icon: 'trending-up', copy: () => 'Clear tiers with escalating discounts and rebates.' },
+        { title: 'Co-Branded Reports', badge: 'Value', stat: 'Customer stickiness through insights', icon: 'file-text', copy: () => 'Automated reports with your brand that prove ongoing value.' }
       ],
       services: [
-        { title: 'De-Risk Cutovers', badge: 'Speed', stat: 'Fewer rollbacks during migration windows', icon: 'shield', copy: () => 'Topology discovery and dependency maps reduce guesswork.' },
-        { title: 'Evidence on Day One', badge: 'Compliance', stat: 'Audit prep time slashed', icon: 'file-check', copy: () => 'SOC 2 / ISO templates populated from live data.' },
-        { title: 'Graph & API-First', badge: 'Extensibility', stat: 'Faster integration, clearer decisions', icon: 'git-branch', copy: () => 'Neo4j + GraphQL model plugs into your patterns cleanly.' }
+        { title: 'Turnkey Provisioning', badge: 'Speed', stat: 'Minutes to activate new customers', icon: 'zap', copy: () => 'Self-serve portal to spin up customer tenants instantly.' },
+        { title: 'Deal Registration', badge: 'Protection', stat: 'Secure your pipeline and margins', icon: 'shield', copy: () => 'Register deals for price protection and priority support.' },
+        { title: 'Sales Enablement Kit', badge: 'Tooling', stat: 'Faster ramp for your sales team', icon: 'package', copy: () => 'Battlecards, ROI calculators, and demo environments ready to go.' }
       ],
       retention: [
-        { title: 'Stay Beyond Go-Live', badge: 'Lifecycle', stat: 'Higher follow-on project rates', icon: 'repeat', copy: () => 'Transition to a managed visibility service smoothly.' },
-        { title: 'Executive-Ready Roll-Ups', badge: 'Insights', stat: 'Momentum sustained through phases', icon: 'presentation', copy: () => 'Sponsor-level summaries keep programs aligned.' },
-        { title: 'Dependency Risk Radar', badge: 'Risk', stat: 'Better change-control outcomes', icon: 'alert-triangle', copy: () => 'Show blast radius, supplier and circuit risks proactively.' }
+        { title: 'Automated QBRs', badge: 'Lifecycle', stat: 'Renewal conversations on autopilot', icon: 'repeat', copy: () => 'Scheduled business reviews with data-driven talking points.' },
+        { title: 'Health Dashboards', badge: 'Insights', stat: 'Spot at-risk accounts early', icon: 'activity', copy: () => 'Real-time customer health scores across your portfolio.' },
+        { title: 'Renewal Alerts', badge: 'Revenue', stat: 'Never miss a renewal window', icon: 'bell', copy: () => 'Proactive alerts with expansion and upsell recommendations.' }
       ],
       cosell: [
-        { title: 'Executive-Level Motions', badge: 'Alignment', stat: 'Less tool talk; faster approvals', icon: 'briefcase', copy: () => 'Joint briefings map telemetry to KPIs and budgets.' },
-        { title: 'Integration Accelerators', badge: 'Tooling', stat: 'Higher reuse across engagements', icon: 'tool', copy: () => 'Repeatable connectors for your target stack.' },
-        { title: 'Regional Playbooks', badge: 'Scale', stat: 'Confidence in larger programs', icon: 'globe', copy: () => 'Template pursuit plans by industry and region.' }
+        { title: 'Joint Pipeline', badge: 'Alignment', stat: 'Shared visibility into deal flow', icon: 'users', copy: () => 'Collaborate on opportunities with WanAware field team.' },
+        { title: 'Demo Environments', badge: 'Proof', stat: 'Show value before the close', icon: 'monitor', copy: () => 'Dedicated sandbox environments for customer proof-of-value.' },
+        { title: 'Territory Planning', badge: 'Scale', stat: 'Grow into new markets together', icon: 'map', copy: () => 'Joint territory plans with field support and MDF access.' }
       ]
     }
   };
@@ -701,39 +701,39 @@ if (document.readyState === 'loading') {
     },
     reseller: {
       recurring: {
-        headline: 'Anchor recurring value in transformation deals',
-        subhead: 'Bundle managed services into enterprise programs with executive-ready proof.',
-        primary: { label: 'Design enterprise revenue bundle', url: '#', id: 'design_enterprise_bundle' },
+        headline: 'Build predictable recurring revenue',
+        subhead: 'Bundle WanAware into your stack with white-label branding and tiered margins.',
+        primary: { label: 'Launch reseller revenue program', url: '#', id: 'launch_reseller_revenue' },
         secondary: [
-          { label: 'Access transformation metrics', url: '#', id: 'access_transformation_metrics' },
-          { label: 'Book value engineering session', url: '#', id: 'book_value_engineering' }
+          { label: 'View margin tiers', url: '#', id: 'view_margin_tiers' },
+          { label: 'Preview white-label portal', url: '#', id: 'preview_whitelabel_portal' }
         ]
       },
       services: {
-        headline: 'Accelerate complex service launches',
-        subhead: 'Align delivery, governance, and change management under one playbook.',
-        primary: { label: 'Architect service portfolio', url: '#', id: 'architect_service_portfolio' },
+        headline: 'Activate customers in minutes',
+        subhead: 'Turnkey provisioning, branded onboarding, and deal-reg protection from day one.',
+        primary: { label: 'Set up reseller portal', url: '#', id: 'setup_reseller_portal' },
         secondary: [
-          { label: 'Review governance model', url: '#', id: 'review_governance_model' },
-          { label: 'Plan change management kit', url: '#', id: 'plan_change_management' }
+          { label: 'Register a deal', url: '#', id: 'register_deal' },
+          { label: 'Access sales enablement kit', url: '#', id: 'access_sales_kit' }
         ]
       },
       retention: {
-        headline: 'Prove value across the lifecycle',
-        subhead: 'Combine telemetry, executive health reviews, and success stories to secure renewals.',
-        primary: { label: 'Launch lifecycle intelligence', url: '#', id: 'launch_lifecycle_intelligence' },
+        headline: 'Maximize renewals across your book',
+        subhead: 'Automated QBRs, health dashboards, and proactive renewal alerts.',
+        primary: { label: 'Launch retention dashboard', url: '#', id: 'launch_retention_dashboard' },
         secondary: [
-          { label: 'Download executive scorecard', url: '#', id: 'download_executive_scorecard' },
-          { label: 'Meet customer success leader', url: '#', id: 'meet_success_leader' }
+          { label: 'View customer health scores', url: '#', id: 'view_health_scores' },
+          { label: 'Configure renewal alerts', url: '#', id: 'configure_renewal_alerts' }
         ]
       },
       cosell: {
-        headline: 'Unify co-sell for enterprise programs',
-        subhead: 'Coordinate GTM, delivery, and success teams with shared telemetry for every alliance.',
-        primary: { label: 'Orchestrate alliance lab', url: '#', id: 'orchestrate_alliance_lab' },
+        headline: 'Grow together with joint go-to-market',
+        subhead: 'Shared pipeline, demo environments, and territory planning with WanAware field team.',
+        primary: { label: 'Join co-sell program', url: '#', id: 'join_cosell_program' },
         secondary: [
-          { label: 'Access joint governance plan', url: '#', id: 'access_joint_governance' },
-          { label: 'Schedule exec alignment', url: '#', id: 'schedule_exec_alignment' }
+          { label: 'Request demo environment', url: '#', id: 'request_demo_env' },
+          { label: 'Plan territory expansion', url: '#', id: 'plan_territory_expansion' }
         ]
       }
     }
