@@ -46,6 +46,7 @@ if (document.readyState === 'loading') {
     verticals: [],
     siProcurementModel: '',
     // Distributor-specific state
+    verificationType: 'business',
     distributorFocus: [],
     activeResellerBand: '',
     dealRegPriceProtect: '',
@@ -748,7 +749,6 @@ if (document.readyState === 'loading') {
     consoleReadout: document.getElementById('console-readout'),
     consoleSubtext: document.getElementById('console-subtext'),
     goalSignal: document.getElementById('goal-signal'),
-    priorityLabel: document.getElementById('priority-label'),
     readinessIntro: document.getElementById('readiness-intro'),
     readinessChecklist: document.getElementById('readiness-checklist'),
     storyCards: document.getElementById('story-cards'),
@@ -831,6 +831,7 @@ if (document.readyState === 'loading') {
   const emailConfirm = document.getElementById('email-confirm');
   const emailCancel = document.getElementById('email-cancel');
   const emailError = document.getElementById('email-error');
+
 
   // Trigger warp speed effect
   function triggerWarpEffect() {
@@ -960,21 +961,18 @@ if (document.readyState === 'loading') {
   const advisorFocusChips = Array.from(document.querySelectorAll('.advisor-focus-chip'));
   const advisorSizeBtns = Array.from(document.querySelectorAll('.advisor-size-btn'));
   const advisorRegionChips = Array.from(document.querySelectorAll('.advisor-region-chip'));
-  const advisorCobrandBtns = Array.from(document.querySelectorAll('.advisor-cobrand-btn'));
   const advisorConfirm = document.getElementById('advisor-confirm');
   // SI selectors
   const siFocusChips = Array.from(document.querySelectorAll('.si-focus-chip'));
   const siLengthBtns = Array.from(document.querySelectorAll('.si-length-btn'));
   const siVerticalChips = Array.from(document.querySelectorAll('.si-vertical-chip'));
   const siRegionChips = Array.from(document.querySelectorAll('.si-region-chip'));
-  const siProcureBtns = Array.from(document.querySelectorAll('.si-procure-btn'));
   const siConfirm = document.getElementById('si-confirm');
   // Distributor selectors
   const distFocusChips = Array.from(document.querySelectorAll('.dist-focus-chip'));
   const distBandBtns = Array.from(document.querySelectorAll('.dist-band-btn'));
   const distRegionChips = Array.from(document.querySelectorAll('.dist-region-chip'));
   const distDealregBtns = Array.from(document.querySelectorAll('.dist-dealreg-btn'));
-  const distMdfBtns = Array.from(document.querySelectorAll('.dist-mdf-btn'));
   const distributorConfirm = document.getElementById('distributor-confirm');
   const personaLayout = document.getElementById('persona-layout');
   const personaGrid = document.getElementById('persona-grid');
@@ -1074,17 +1072,14 @@ if (document.readyState === 'loading') {
     target_customer_size: document.querySelector('input[name="journey_target_customer_size"]'),
     regions_served: document.querySelector('input[name="journey_regions_served"]'),
     white_label_required: document.querySelector('input[name="journey_white_label_required"]'),
-    cobrand_required: document.querySelector('input[name="journey_cobrand_required"]'),
     // SI hidden fields
     si_focus: document.querySelector('input[name="journey_si_focus"]'),
     project_length_band: document.querySelector('input[name="journey_project_length_band"]'),
     verticals: document.querySelector('input[name="journey_verticals"]'),
-    si_procurement_model: document.querySelector('input[name="journey_si_procurement_model"]'),
     // Distributor hidden fields
     distributor_focus: document.querySelector('input[name="journey_distributor_focus"]'),
     active_reseller_band: document.querySelector('input[name="journey_active_reseller_band"]'),
     deal_reg_price_protect: document.querySelector('input[name="journey_deal_reg_price_protect"]'),
-    mdf_available: document.querySelector('input[name="journey_mdf_available"]'),
     var_activation_motion: document.querySelector('input[name="journey_var_activation_motion"]'),
     intro_vars_30d: document.querySelector('input[name="journey_intro_vars_30d"]'),
     marketplaces: document.querySelector('input[name="journey_marketplaces"]'),
@@ -1096,13 +1091,10 @@ if (document.readyState === 'loading') {
     process_owner: document.querySelector('input[name="journey_process_owner"]'),
     customer_band: document.querySelector('input[name="journey_active_customer_band"]'),
     intro_accounts_30d: document.querySelector('input[name="journey_intro_accounts_30d"]'),
-    kickoff_window: document.querySelector('input[name="journey_pilot_kickoff_window"]'),
     exec_sponsor_named: document.querySelector('input[name="journey_exec_sponsor_named"]'),
     weekly_time_commitment: document.querySelector('input[name="journey_weekly_time_commitment"]'),
     partner: document.querySelector('input[name="journey_partner_type"]'),
     goal: document.querySelector('input[name="journey_goal"]'),
-    pain: document.querySelector('input[name="journey_pain_point"]'),
-    priority: document.querySelector('input[name="journey_priority"]'),
     stage: document.querySelector('input[name="journey_completion_stage"]'),
     cta: document.querySelector('input[name="journey_cta_selected"]')
   };
@@ -1125,17 +1117,14 @@ if (document.readyState === 'loading') {
 
   const personaButtons = Array.from(document.querySelectorAll('.persona-badge'));
   const goalButtons = Array.from(document.querySelectorAll('.goal-toggle'));
-  const painButtons = Array.from(document.querySelectorAll('.pain-chip'));
   const progressDock = document.querySelector('.progress-dock');
   const missionGoalSection = document.getElementById('mission-goal');
   const changeGoalBtn = document.getElementById('change-goal-btn');
   const progressPills = Array.from(document.querySelectorAll('.progress-pill'));
   // Readiness selectors
-  const kickoffChips = Array.from(document.querySelectorAll('#mission-readiness .ready-chip[data-ready="kickoff"]'));
   const execBtns = Array.from(document.querySelectorAll('#mission-readiness .ready-bool-btn[data-ready="exec"]'));
   const weeklyBtns = Array.from(document.querySelectorAll('#mission-readiness .ready-time-btn[data-ready="weekly"]'));
 
-  const prioritySlider = document.getElementById('priority-slider');
   const beginMission = document.getElementById('begin-mission');
   const briefingAdvance = document.getElementById('briefing-advance');
   const readinessAdvance = document.getElementById('readiness-advance');
@@ -1268,18 +1257,6 @@ if (document.readyState === 'loading') {
     });
   });
 
-  // Procurement model (optional single)
-  siProcureBtns.forEach(btn => {
-    btn.addEventListener('click', () => {
-      state.siProcurementModel = btn.getAttribute('data-val') || '';
-      siProcureBtns.forEach(b => { b.removeAttribute('data-active'); b.removeAttribute('aria-pressed'); });
-      btn.setAttribute('data-active', 'true');
-      btn.setAttribute('aria-pressed', 'true');
-      updateHidden('si_procurement_model', state.siProcurementModel);
-      recordEvent('si_procurement_model_set', { value: state.siProcurementModel });
-    });
-  });
-
   function updateSiConfirmState() {
     const f = (state.siFocus || []).length > 0;
     const l = Boolean(state.projectLengthBand);
@@ -1360,29 +1337,12 @@ if (document.readyState === 'loading') {
     });
   });
 
-  // Distributor: MDF/co-marketing funds (boolean)
-  distMdfBtns.forEach(btn => {
-    btn.addEventListener('click', () => {
-      const v = btn.getAttribute('data-val') === 'Yes' ? 'true' : 'false';
-      state.mdfAvailable = v;
-      distMdfBtns.forEach(b => { b.removeAttribute('data-active'); b.removeAttribute('aria-pressed'); });
-      btn.setAttribute('data-active', 'true');
-      btn.setAttribute('aria-pressed', 'true');
-      updateHidden('mdf_available', v);
-      recordEvent('mdf_available_set', { value: v });
-      const row = document.querySelector('.ready-system-row[data-system="dist-mdf"]');
-      if (row) row.setAttribute('data-complete', 'true');
-      updateDistributorConfirmState();
-    });
-  });
-
   function updateDistributorConfirmState() {
     const f = (state.distributorFocus || []).length > 0;
     const b = Boolean(state.activeResellerBand);
     const r = (state.regionsServed || []).length > 0;
     const d = state.dealRegPriceProtect === 'true' || state.dealRegPriceProtect === 'false';
-    const m = state.mdfAvailable === 'true' || state.mdfAvailable === 'false';
-    setButtonState(distributorConfirm, f && b && r && d && m);
+    setButtonState(distributorConfirm, f && b && r && d);
   }
 
   distributorConfirm?.addEventListener('click', () => {
@@ -1459,28 +1419,21 @@ if (document.readyState === 'loading') {
 
   function updateGoalConfirmState() {
     const goalOk = Boolean(state.goal);
-    const painOk = Boolean(state.pain);
     const ttsOk = Boolean(state.timeToStart);
     const ownerOk = Boolean(state.processOwner);
     const bandOk = Boolean(state.activeCustomerBand);
     const introOk = Boolean(state.introAccounts30d);
-    setButtonState(goalConfirm, goalOk && painOk && ttsOk && ownerOk && bandOk && introOk);
+    setButtonState(goalConfirm, goalOk && ttsOk && ownerOk && bandOk && introOk);
   }
 
   function updateReadinessConfirmState() {
-    const kOk = Boolean(state.kickoffWindow);
     const eOk = state.execSponsorNamed === 'true' || state.execSponsorNamed === 'false' || state.execSponsorNamed === 'Yes' || state.execSponsorNamed === 'No';
     const wOk = Boolean(state.weeklyTimeCommitment);
-    setButtonState(readinessAdvance, kOk && eOk && wOk);
+    setButtonState(readinessAdvance, eOk && wOk);
   }
 
   function renderReadiness() {
     // reflect current selections on UI
-    kickoffChips.forEach(b => {
-      const active = b.getAttribute('data-value') === state.kickoffWindow;
-      b.setAttribute('data-active', active ? 'true' : 'false');
-      b.setAttribute('aria-pressed', active ? 'true' : 'false');
-    });
     execBtns.forEach(b => {
       const val = b.getAttribute('data-value') || '';
       const canonical = val === 'Yes' ? 'true' : val === 'No' ? 'false' : val;
@@ -1495,31 +1448,13 @@ if (document.readyState === 'loading') {
     });
 
     // Update system row complete states
-    const kickoffRow = document.querySelector('.ready-system-row[data-system="kickoff"]');
     const execRow = document.querySelector('.ready-system-row[data-system="exec"]');
     const weeklyRow = document.querySelector('.ready-system-row[data-system="weekly"]');
-    if (kickoffRow) kickoffRow.setAttribute('data-complete', state.kickoffWindow ? 'true' : 'false');
     if (execRow) execRow.setAttribute('data-complete', (state.execSponsorNamed === 'true' || state.execSponsorNamed === 'false') ? 'true' : 'false');
     if (weeklyRow) weeklyRow.setAttribute('data-complete', state.weeklyTimeCommitment ? 'true' : 'false');
 
     updateReadinessConfirmState();
   }
-
-  // Readiness events
-  kickoffChips.forEach(btn => {
-    btn.addEventListener('click', () => {
-      state.kickoffWindow = btn.getAttribute('data-value') || '';
-      kickoffChips.forEach(b => { b.removeAttribute('data-active'); b.removeAttribute('aria-pressed'); });
-      btn.setAttribute('data-active', 'true');
-      btn.setAttribute('aria-pressed', 'true');
-      updateHidden('kickoff_window', state.kickoffWindow);
-      recordEvent('kickoff_window_selected', { value: state.kickoffWindow });
-      // Mark system row as complete
-      const row = document.querySelector('.ready-system-row[data-system="kickoff"]');
-      if (row) row.setAttribute('data-complete', 'true');
-      updateReadinessConfirmState();
-    });
-  });
 
   execBtns.forEach(btn => {
     btn.addEventListener('click', () => {
@@ -1770,7 +1705,7 @@ if (document.readyState === 'loading') {
     if (!elements.telemetry) return;
     const savedY = window.scrollY;
     const entry = document.createElement('div');
-    entry.className = 'rounded-xl border border-slate-200 bg-slate-50 text-sm text-slate-700 transition-opacity duration-500 opacity-0 telemetry-entry';
+    entry.className = 'rounded-xl border border-[rgba(22,184,205,0.12)] bg-[#0f172a] text-sm text-slate-200 transition-opacity duration-500 opacity-0 telemetry-entry';
     entry.setAttribute('data-timestamp', getMissionTime());
 
     const messageSpan = document.createElement('span');
@@ -1794,7 +1729,7 @@ if (document.readyState === 'loading') {
     elements.telemetry.innerHTML = '';
     messages.forEach(msg => {
       const entry = document.createElement('div');
-      entry.className = 'rounded-xl border border-slate-200 bg-slate-50 text-sm text-slate-700 transition-opacity duration-500 opacity-0 telemetry-entry';
+      entry.className = 'rounded-xl border border-[rgba(22,184,205,0.12)] bg-[#0f172a] text-sm text-slate-200 transition-opacity duration-500 opacity-0 telemetry-entry';
       entry.setAttribute('data-timestamp', getMissionTime());
 
       const messageSpan = document.createElement('span');
@@ -1923,11 +1858,11 @@ if (document.readyState === 'loading') {
 
       button.innerHTML = `
         <div>
-          <p class="text-xs uppercase tracking-[0.35em] text-slate-500">Objective</p>
-          <h3 class="text-xl font-semibold mt-1 text-slate-800">${displayLabel}</h3>
-          <p class="text-sm text-slate-500 mt-2">${displayDescriptor}</p>
+          <p class="text-xs uppercase tracking-[0.35em] text-[#16B8CD]/80">Objective</p>
+          <h3 class="text-xl font-semibold mt-1 text-white">${displayLabel}</h3>
+          <p class="text-sm text-slate-300/80 mt-2">${displayDescriptor}</p>
         </div>
-        <i data-lucide="${goal.icon}" class="w-9 h-9 text-slate-600"></i>
+        <i data-lucide="${goal.icon}" class="w-9 h-9 text-[#16B8CD]/60"></i>
       `;
 
       button.addEventListener('pointerdown', (e) => {
@@ -2059,30 +1994,6 @@ if (document.readyState === 'loading') {
     unlockStage(2);
   }
 
-  function renderPriority() {
-    if (!elements.priorityLabel) return;
-    const value = state.priority;
-    let descriptor = 'Momentum';
-    if (value >= 90) descriptor = 'Hyperdrive';
-    else if (value >= 70) descriptor = 'Momentum';
-    else if (value >= 50) descriptor = 'Stabilize';
-    else descriptor = 'Incubate';
-    elements.priorityLabel.textContent = `${value} · ${descriptor}`;
-    updateHidden('priority', value);
-
-    // Update the vertical fuel gauge to match slider
-    const gauge = document.getElementById('fuel-fill');
-    if (gauge) {
-      const min = Number(prioritySlider?.min ?? 0);
-      const max = Number(prioritySlider?.max ?? 100);
-      const clamped = Math.max(min, Math.min(max, value));
-      const pct = (clamped - min) / Math.max(1, (max - min));
-      const floor = 0.06; // keep a visible baseline
-      const h = Math.max(floor, Math.min(1, pct));
-      gauge.style.height = Math.round(h * 100) + '%';
-      gauge.style.opacity = 0.9;
-    }
-  }
 
   function applyGoal(key, autoScroll = false) {
     disableSnapTemporarily();
@@ -2117,25 +2028,6 @@ if (document.readyState === 'loading') {
     showGoalInsight(gKey);
   }
 
-  function applyPain(key, autoScroll = false) {
-    if (!painConfig[key]) return;
-    state.pain = key;
-    painButtons.forEach(btn => {
-      const active = btn.getAttribute('data-pain') === key;
-      btn.setAttribute('data-active', active ? 'true' : 'false');
-      btn.setAttribute('aria-pressed', active ? 'true' : 'false');
-    });
-
-    const pain = painConfig[key];
-    renderTelemetryFeed();
-    if (elements.goalSignal) {
-      elements.goalSignal.textContent = `${pain.detail} Noted. We’ll weave this into your course correction.`;
-    }
-    updateHidden('pain', pain.label);
-    saveState();
-    recordEvent('journey_pain_selected');
-    updateGoalConfirmState();
-  }
 
   function renderStory() {
     if (!state.goal) return;
@@ -2166,8 +2058,8 @@ if (document.readyState === 'loading') {
               <i data-lucide="${card.icon}" class="w-4 h-4"></i>
               <span>${card.badge}</span>
             </div>
-            <h3 class="text-2xl font-semibold mt-5 text-slate-800">${card.title}</h3>
-            <p class="text-slate-600 mt-4 text-sm leading-relaxed">${body}</p>
+            <h3 class="text-2xl font-semibold mt-5 text-white">${card.title}</h3>
+            <p class="text-slate-300/80 mt-4 text-sm leading-relaxed">${body}</p>
             <div class="story-aux">
               <div class="story-aux-label">${card.badge}</div>
               <div class="story-aux-value">${nextValue}</div>
@@ -2245,12 +2137,49 @@ if (document.readyState === 'loading') {
 
   let pendingCta = null;
 
+  const modalCopy = {
+    become_partner: {
+      label: 'Get Started',
+      headline: 'Activate your partner account',
+      description: 'Enter your details below and we\'ll set up your partner account so you can start onboarding right away.',
+      confirm: 'Activate Now'
+    },
+    book_meeting: {
+      label: 'Schedule',
+      headline: 'Book a call with our team',
+      description: 'Share your info and we\'ll connect you with a partner specialist who can walk you through next steps.',
+      confirm: 'Book My Call'
+    },
+    optin: {
+      label: 'Stay in the loop',
+      headline: 'Subscribe to partner updates',
+      description: 'Drop your details and we\'ll keep you posted on program news, enablement resources, and upcoming events.',
+      confirm: 'Subscribe'
+    },
+    _default: {
+      label: 'Transmission',
+      headline: 'Where should we send it?',
+      description: 'Drop your details and we\'ll transmit the requested materials and a copy of your mission selections.',
+      confirm: 'Send and continue'
+    }
+  };
+
   function setOverlay(open) {
     if (!emailOverlay) return;
     emailOverlay.setAttribute('data-open', open ? 'true' : 'false');
     emailOverlay.setAttribute('aria-hidden', open ? 'false' : 'true');
     if (open) {
       emailError && (emailError.style.display = 'none');
+      // Update modal copy based on which CTA triggered it
+      const ctaId = pendingCta ? pendingCta.ctaId : null;
+      const copy = modalCopy[ctaId] || modalCopy._default;
+      const labelEl = document.getElementById('modal-label');
+      const headlineEl = document.getElementById('modal-headline');
+      const descEl = document.getElementById('modal-description');
+      if (labelEl) labelEl.textContent = copy.label;
+      if (headlineEl) headlineEl.textContent = copy.headline;
+      if (descEl) descEl.textContent = copy.description;
+      if (emailConfirm) emailConfirm.textContent = copy.confirm;
       setTimeout(() => emailInput && emailInput.focus(), 10);
     }
   }
@@ -2289,7 +2218,9 @@ if (document.readyState === 'loading') {
         firstName: state.firstname,
         lastName: state.lastname,
         company: state.business_name || '',
+        website: state.business_website || '',
         partnerType: state.persona,
+        verificationType: 'business',
         goal: state.goal,
         targetSize: state.targetCustomerSize,
         regions: (state.regionsServed || []).join('; '),
@@ -2424,7 +2355,7 @@ if (document.readyState === 'loading') {
   });
 
   goalConfirm?.addEventListener('click', () => {
-    if (!state.goal || !state.pain) return;
+    if (!state.goal) return;
     disableSnapTemporarily();
     const goal = goalConfig[state.goal];
     if (elements.goalSignal && goal) {
@@ -2440,29 +2371,12 @@ if (document.readyState === 'loading') {
     temporarilyUnlockAndScroll('#mission-readiness');
   });
 
-  painButtons.forEach(btn => {
-    btn.addEventListener('click', () => {
-      disableSnapTemporarily();
-      const key = btn.getAttribute('data-pain');
-      applyPain(key);
-      if (state.goal) {
-        renderReadiness();
-      }
-    });
-  });
 
-  prioritySlider?.addEventListener('input', event => {
-    state.priority = Number(event.target.value);
-    renderPriority();
-    saveState();
-    recordEvent('journey_priority_adjusted', { priority: state.priority });
-  });
 
   readinessAdvance?.addEventListener('click', () => {
     const missing = [];
     const eVal = state.execSponsorNamed;
     const eOk = eVal === 'true' || eVal === 'false' || eVal === 'Yes' || eVal === 'No';
-    if (!state.kickoffWindow) missing.push('kickoffWindow');
     if (!eOk) missing.push('execSponsorNamed');
     if (!state.weeklyTimeCommitment) missing.push('weeklyTimeCommitment');
     if (missing.length) {
@@ -2511,13 +2425,10 @@ if (document.readyState === 'loading') {
         { name: 'journey_process_owner', value: state.processOwner || '' },
         { name: 'journey_active_customer_band', value: state.activeCustomerBand || '' },
         { name: 'journey_intro_accounts_30d', value: state.introAccounts30d || '' },
-        { name: 'journey_kickoff_window', value: state.kickoffWindow || '' },
         { name: 'journey_exec_sponsor_named', value: state.execSponsorNamed || '' },
         { name: 'journey_weekly_time_commitment', value: state.weeklyTimeCommitment || '' },
         { name: 'journey_partner_type', value: state.persona ? personaConfig[state.persona].label : '' },
         { name: 'journey_goal', value: state.goal ? goalConfig[state.goal].label : '' },
-        { name: 'journey_pain_point', value: state.pain ? painConfig[state.pain].label : '' },
-        { name: 'journey_priority', value: state.priority.toString() },
         { name: 'journey_completion_stage', value: state.currentStage },
         { name: 'journey_cta_selected', value: state.cta || '' },
         { name: 'journey_subscribe_for_updates', value: state.subscribeForUpdates || '' },
@@ -2595,6 +2506,7 @@ if (document.readyState === 'loading') {
       company: businessName || '',
       website: businessWebsite || '',
       partnerType: state.persona || 'advisor',
+      verificationType: 'business',
       goal: state.goal || '',
       // Add additional context from journey
       mspOffers: state.mspOffers?.join(',') || '',
@@ -2604,7 +2516,7 @@ if (document.readyState === 'loading') {
     });
 
     // Redirect to onboarding app
-    const onboardingUrl = `https://onboarding-app-lime.vercel.app/kyc?${onboardingParams.toString()}`;
+    const onboardingUrl = `https://partneronboarding.dev.wanaware.com/start?${onboardingParams.toString()}`;
     console.log('🚀 Redirecting to onboarding app:', onboardingUrl);
 
     // Add small delay to ensure HubSpot submission completes
@@ -2731,10 +2643,9 @@ if (document.readyState === 'loading') {
   }
 
   observeStages();
-  renderPriority();
   loadState();
   normalizeAcronymLabels();
-  setButtonState(goalConfirm, Boolean(state.goal && state.pain));
+  setButtonState(goalConfirm, Boolean(state.goal));
   updateHiddenStage();
   updateProgressDock();
   updateProgressPills();
@@ -2792,15 +2703,12 @@ if (document.readyState === 'loading') {
       updateHidden('target_customer_size', '');
       updateHidden('regions_served', '');
       updateHidden('white_label_required', '');
-      updateHidden('cobrand_required', '');
       updateHidden('si_focus', '');
       updateHidden('project_length_band', '');
       updateHidden('verticals', '');
-      updateHidden('si_procurement_model', '');
       updateHidden('distributor_focus', '');
       updateHidden('active_reseller_band', '');
       updateHidden('deal_reg_price_protect', '');
-      updateHidden('mdf_available', '');
       updateHidden('marketplaces', '');
       updateHidden('program_levers', '');
       updateHidden('enablement_plan', '');
@@ -2815,11 +2723,11 @@ if (document.readyState === 'loading') {
         chip.removeAttribute('data-active');
         chip.removeAttribute('aria-pressed');
       });
-      [...mspSizeBtns, ...advisorSizeBtns, ...distDealregBtns, ...distMdfBtns, ...siLengthBtns, ...siProcureBtns].forEach(btn => {
+      [...mspSizeBtns, ...advisorSizeBtns, ...distDealregBtns, ...siLengthBtns].forEach(btn => {
         btn.removeAttribute('data-active');
         btn.removeAttribute('aria-pressed');
       });
-      [...mspWhiteBtns, ...advisorCobrandBtns].forEach(btn => {
+      [...mspWhiteBtns].forEach(btn => {
         btn.removeAttribute('data-active');
         btn.removeAttribute('aria-pressed');
       });
@@ -2927,21 +2835,6 @@ if (document.readyState === 'loading') {
     });
   });
 
-  // Advisor co-brand required (single)
-  advisorCobrandBtns.forEach(btn => {
-    btn.addEventListener('click', () => {
-      const val = btn.getAttribute('data-val') || '';
-      state.coBrandRequired = val;
-      advisorCobrandBtns.forEach(b => { b.removeAttribute('data-active'); b.removeAttribute('aria-pressed'); });
-      btn.setAttribute('data-active', 'true');
-      btn.setAttribute('aria-pressed', 'true');
-      updateHidden('cobrand_required', state.coBrandRequired);
-      recordEvent('advisor_cobrand_selected', { value: state.coBrandRequired });
-      const row = document.querySelector('.ready-system-row[data-system="advisor-cobrand"]');
-      if (row) row.setAttribute('data-complete', state.coBrandRequired ? 'true' : 'false');
-      updateAdvisorConfirmState();
-    });
-  });
 
   // Target size (single)
   mspSizeBtns.forEach(btn => {
@@ -3012,8 +2905,7 @@ if (document.readyState === 'loading') {
     const focusOk = (state.advisorFocus || []).length > 0;
     const sizeOk = Boolean(state.targetCustomerSize);
     const regionsOk = (state.regionsServed || []).length > 0;
-    const cobrandOk = Boolean(state.coBrandRequired);
-    setButtonState(advisorConfirm, focusOk && sizeOk && regionsOk && cobrandOk);
+    setButtonState(advisorConfirm, focusOk && sizeOk && regionsOk);
   }
 
   mspConfirm?.addEventListener('click', (e) => {
@@ -3041,8 +2933,7 @@ if (document.readyState === 'loading') {
     recordEvent('advisor_persona_confirmed', {
       focus: (state.advisorFocus || []).join(','),
       size: state.targetCustomerSize,
-      regions: (state.regionsServed || []).join(','),
-      cobrand: state.coBrandRequired
+      regions: (state.regionsServed || []).join(',')
     });
     submitToHubSpot();
     recordEvent('journey_persona_confirmed');
@@ -3077,13 +2968,12 @@ if (document.readyState === 'loading') {
 
   // Handle opt-in button click
   optinBtn?.addEventListener('click', () => {
-    // Open email modal for opt-in
-    setOverlay(true);
     recordEvent('optin_button_clicked');
 
-    // Store that this is an opt-in flow (not a CTA flow)
+    // Set pending CTA before opening overlay so modal copy updates correctly
     pendingCta = { ctaId: 'optin', label: 'Subscribe to Updates', href: null };
-    
+    setOverlay(true);
+
     // Set subscribe flag to 'yes' for HubSpot form
     state.subscribeForUpdates = 'yes';
     updateHidden('subscribe_for_updates', 'yes');
