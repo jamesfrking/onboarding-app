@@ -100,9 +100,9 @@ if (document.readyState === 'loading') {
       subtext: 'Equip your reseller network with observability portals, partner kits, and margin controls that scale.',
       hero: 'Multiplying reach and returns across your ecosystem.'
     },
-    si: {
-      label: 'System Integrator',
-      short: 'SI',
+    reseller: {
+      label: 'Reseller',
+      short: 'Reseller',
       telemetry: 'SI integration path synced. Modernization de-risking and compliance evidence ready.',
       subtext: 'Integrate observability into transformation programs to accelerate outcomes and satisfy compliance on day one.',
       hero: 'Engineering outcomes without overhead.'
@@ -191,7 +191,7 @@ if (document.readyState === 'loading') {
         'KPI: listing traffic +200%, registered deals up.'
       ]
     },
-    si: {
+    reseller: {
       recurring: [
         'Model: bundle managed services into transformation deals.',
         'Levers: outcome SLAs, success metrics, value realization.',
@@ -236,7 +236,7 @@ if (document.readyState === 'loading') {
       descriptor: 'Engineer subscription bundles, automation playbooks, and pricing motions that boost MRR.',
       telemetry: 'Recurring revenue engines fueled.',
       sliderLegend: 'Subscription surge level',
-      personas: ['msp', 'distributor', 'si', 'advisor'],
+      personas: ['msp', 'distributor', 'reseller', 'advisor'],
       icon: 'repeat',
       iconColor: 'cyan'
     },
@@ -245,7 +245,7 @@ if (document.readyState === 'loading') {
       descriptor: 'Productize offers faster with deployment blueprints, enablement paths, and co-branded assets.',
       telemetry: 'Managed service launch countdown initiated.',
       sliderLegend: 'Go-live readiness',
-      personas: ['msp', 'distributor', 'si', 'advisor'],
+      personas: ['msp', 'distributor', 'reseller', 'advisor'],
       icon: 'rocket',
       iconColor: 'sky'
     },
@@ -254,7 +254,7 @@ if (document.readyState === 'loading') {
       descriptor: 'Instrument experience dashboards, QBR automation, and customer marketing cadences.',
       telemetry: 'Retention command center online.',
       sliderLegend: 'Advocacy momentum',
-      personas: ['msp', 'distributor', 'si', 'advisor'],
+      personas: ['msp', 'distributor', 'reseller', 'advisor'],
       icon: 'shield',
       iconColor: 'blue'
     },
@@ -263,7 +263,7 @@ if (document.readyState === 'loading') {
       descriptor: 'Orchestrate marketplace offers, shared pipeline visibility, and field activation campaigns.',
       telemetry: 'Co-sell velocity boosters engaged.',
       sliderLegend: 'Joint motion intensity',
-      personas: ['msp', 'distributor', 'si', 'advisor'],
+      personas: ['msp', 'distributor', 'reseller', 'advisor'],
       icon: 'link',
       iconColor: 'purple'
     },
@@ -326,7 +326,7 @@ if (document.readyState === 'loading') {
       descriptor: 'Outcome-based delivery models, executive alignment frameworks, and value realization tracking.',
       telemetry: 'Enterprise transformation playbooks loaded.',
       sliderLegend: 'Transformation velocity',
-      personas: ['si'], // SI only
+      personas: ['reseller'], // Reseller only
       icon: 'trending-up',
       iconColor: 'indigo'
     }
@@ -352,7 +352,7 @@ if (document.readyState === 'loading') {
       retention: { label: 'Raise Network Quality', descriptor: 'Standardize excellence with proof kits, shared health dashboards, and a repeatable enablement bench.' },
       cosell: { label: 'Amplify Territory', descriptor: 'Align our field with yours, leverage MDF, and run portable proof/ROI plays to expand regional coverage.' }
     },
-    si: {
+    reseller: {
       recurring: { label: 'Add Recurring Streams', descriptor: 'Attach post-project managed visibility to stabilize outcomes and monetize ongoing assurance.' },
       services: { label: 'De-Risk Delivery', descriptor: 'Use topology discovery, dependency maps, and API-first integrations to accelerate cutovers and reduce rollbacks.' },
       retention: { label: 'Compliance on Day One', descriptor: 'Provide SOC 2/ISO evidence straight from live telemetry to keep audits clean and sponsors aligned.' },
@@ -550,7 +550,7 @@ if (document.readyState === 'loading') {
         { title: 'Rapid Proof Kits', badge: 'Proof', stat: 'Consistent execution out-of-the-box', icon: 'package', copy: () => 'Portable demo and ROI flows for any region.' }
       ]
     },
-    si: {
+    reseller: {
       recurring: [
         { title: 'Attach Managed Visibility', badge: 'Services', stat: 'Stabilizes post-go-live outcomes', icon: 'link', copy: () => 'Create a recurring post-project stream alongside transformation work.' },
         { title: 'Monetize Integration IP', badge: 'IP', stat: 'Better utilization of bench time', icon: 'code', copy: () => 'Package connectors and dashboards as SKUs for reuse.' },
@@ -699,7 +699,7 @@ if (document.readyState === 'loading') {
         ]
       }
     },
-    si: {
+    reseller: {
       recurring: {
         headline: 'Anchor recurring value in transformation deals',
         subhead: 'Bundle managed services into enterprise programs with executive-ready proof.',
@@ -766,7 +766,7 @@ if (document.readyState === 'loading') {
   const pdfUrls = {
     'msp': 'https://46424092.fs1.hubspotusercontent-na2.net/hubfs/46424092/For%20MSPs%20%20MSSPs%20(Managed%20Service%20&%20Managed%20Security%20Service%20Providers).pdf',
     'distributor': 'https://46424092.fs1.hubspotusercontent-na2.net/hubfs/46424092/For%20Distributors.pdf',
-    'si': 'https://46424092.fs1.hubspotusercontent-na2.net/hubfs/46424092/For%20Systems%20Integrators%20(Channel%20Partners).pdf',
+    'reseller': 'https://46424092.fs1.hubspotusercontent-na2.net/hubfs/46424092/For%20Systems%20Integrators%20(Channel%20Partners).pdf',
     'advisor': 'https://46424092.fs1.hubspotusercontent-na2.net/hubfs/46424092/For%20Value-Added%20Resellers%20(VARs).pdf'
   };
 
@@ -872,7 +872,7 @@ if (document.readyState === 'loading') {
   const personaInsights = {
     'msp': '87% of MSPs prioritize recurring revenue growth as their primary objective',
     'distributor': '73% of distributors focus on expanding their active reseller network',
-    'si': '91% of system integrators target enterprise accounts for strategic projects',
+    'reseller': '91% of resellers target enterprise accounts for strategic projects',
     'advisor': '82% of technology advisors emphasize building trusted advisor relationships'
   };
 
@@ -1964,7 +1964,7 @@ if (document.readyState === 'loading') {
       if (key === 'advisor') {
         updateAdvisorConfirmState();
       }
-      if (key === 'si') {
+      if (key === 'reseller') {
         updateSiConfirmState();
       }
     } else {
