@@ -1929,7 +1929,7 @@ if (document.readyState === 'loading') {
     const allPanels = {
       msp: document.getElementById('msp-detail-panel'),
       distributor: document.getElementById('distributor-detail-panel'),
-      si: document.getElementById('si-detail-panel'),
+      reseller: document.getElementById('si-detail-panel'),
       advisor: document.getElementById('advisor-detail-panel')
     };
 
